@@ -81,14 +81,14 @@ class SimpleDynamics : public rclcpp::Node{
 
       p_dot_prev << p_dot[0], p_dot[1], p_dot[2];
 
-      std::cout << "p: " << p.transpose() << std::endl;
-      std::cout << "p_dot: " << p_dot.transpose() << std::endl;
+      //std::cout << "p: " << p.transpose() << std::endl;
+      //std::cout << "p_dot: " << p_dot.transpose() << std::endl;
 
       // Transform theta to new angle between -pi and pi
       p[2] = fmod(p[2] + M_PI, 2*M_PI) - M_PI;
 
-      std::cout << "p: " << p.transpose() << std::endl;
-      std::cout << "p_dot: " << p_dot.transpose() << std::endl;
+      //std::cout << "p: " << p.transpose() << std::endl;
+      //std::cout << "p_dot: " << p_dot.transpose() << std::endl;
 
       // Update pose
       pose.pose.position.x = p[0];
@@ -103,13 +103,22 @@ class SimpleDynamics : public rclcpp::Node{
       pose.header.frame_id = "world";
       pose.header.stamp = this->now();
 
+      pose_dot.twist.linear.x = p_dot[0];
+      pose_dot.twist.linear.y = p_dot[1];
+      pose_dot.twist.linear.z = 0.0;
+      pose_dot.twist.angular.x = 0.0;
+      pose_dot.twist.angular.y = 0.0;
+      pose_dot.twist.angular.z = p_dot[2];
+      pose_dot.header.frame_id = "world";
+      pose_dot.header.stamp = this->now();
+
       transform.header.stamp = this->now();
       transform.header.frame_id = "world";
       //transform.child_frame_id = "base_footprint";
       if (use_prefix){
 	transform.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
       } else {
-	transform.child_frame_id = "base_footprint";
+	transform.child_frame_id = "puzzlebot_leader_base_footprint";
       }
       transform.transform.translation.x = p[0];
       transform.transform.translation.y = p[1];
@@ -121,6 +130,7 @@ class SimpleDynamics : public rclcpp::Node{
 
       transform_broadcaster->sendTransform(transform);
       estimator_pose_publisher->publish(pose);
+      estimator_velocity_publisher->publish(pose_dot);
     }
 
   private:

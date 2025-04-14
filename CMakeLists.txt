@@ -27,6 +27,9 @@ ament_target_dependencies(simple_kinematics_node rclcpp std_msgs geometry_msgs t
 add_executable(asmc_node src/asmc.cpp)
 ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros)
 
+add_executable(formation_asmc_node src/formation_asmc.cpp)
+ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_ros)
+
 #ament_python_install_package(${PROJECT_NAME})
 
 #install(PROGRAMS
@@ -36,6 +39,7 @@ ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros)
 install(TARGETS
   simple_kinematics_node
   asmc_node
+  formation_asmc_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
