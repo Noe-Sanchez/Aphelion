@@ -1,0 +1,111 @@
+<robot name="pname">
+
+  <link name="pname_base_footprint">
+  </link>
+
+  <link name="pname_base_link">
+    <visual>
+      <geometry>
+        <!-- mesh filename="package://aphelion/meshes/MCR2_puzzlebot_base_mod.stl"/ -->
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_lidar_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+      <!-- origin rpy="1.57 0 3.14" xyz="0 0 0.0795" / -->
+    </visual>
+  </link>
+
+  <link name="pname_wheel_r_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="pname_wheel_l_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="pname_caster_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_caster_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- link name="pname_lidar_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="pname_lidar_base_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_lidar_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link -->
+
+  <joint name="base_link_joint" type="fixed">
+    <parent link="pname_base_footprint"/>
+    <child  link="pname_base_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint>
+
+  <!-- joint name="base_lidar_base_joint" type="fixed">
+    <link name="pname_base_link"/>
+    <link name="pname_lidar_base_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="base_lidar_joint" type="fixed">
+    <link name="pname_lidar_base_link"/>
+    <link name="pname_lidar_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint -->
+
+  <joint name="wheel_r_joint" type="fixed">
+    <parent link="pname_base_link"/>
+    <child  link="pname_wheel_r_link"/>
+    <!-- origin xyz="2.052 -0.095 -0.0025" rpy="0 0 0"/ -->
+    <origin xyz="0.0230 -0.09 -0.0215" rpy="1.57 0 0"/>
+  </joint>
+
+  <joint name="wheel_l_joint" type="fixed">
+    <parent link="pname_base_link"/>
+    <child  link="pname_wheel_l_link"/>
+    <origin xyz="0.0230 0.09 -0.0215" rpy="-1.57 0 0"/>
+  </joint>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="pname_base_link"/>
+    <child  link="pname_caster_link"/>
+    <origin xyz="-0.11 0.0 -0.0575" rpy="0 0 0"/>
+  </joint>
+
+</robot>
