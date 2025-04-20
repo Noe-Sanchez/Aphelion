@@ -113,8 +113,10 @@ class PuzzlebotAsmc : public rclcpp::Node{
       sigma = A.colPivHouseholderQr().solve(uaux);
 
       // Saturate sigma
-      sigma(0) = std::max(-3.0, std::min(3.0, sigma(0)));
-      sigma(1) = std::max(-3.0, std::min(3.0, sigma(1)));
+      //sigma(0) = std::max(-3.0, std::min(3.0, sigma(0)));
+      //sigma(1) = std::max(-3.0, std::min(3.0, sigma(1)));
+      sigma(0) = std::max(-2.0, std::min(2.0, sigma(0)));
+      sigma(1) = std::max(-2.0, std::min(2.0, sigma(1)));
 
       // Publish sigma (wheel velocities)
       cmd_vel.angular.x = sigma(0);

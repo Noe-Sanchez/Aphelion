@@ -30,6 +30,9 @@ class FormationAsmc : public rclcpp::Node{
       this->declare_parameter("robot_name", "puzzlebot");
       this->get_parameter("robot_name", robot_name);
 
+      this->declare_parameter("frame_locked_mode", false);
+      this->get_parameter("frame_locked_mode", frame_locked_mode);
+
       // Subscribers
       estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>(robot_name + "_" + std::to_string(robot_id) + "/estimator/pose", 10, std::bind(&FormationAsmc::estimator_pose_callback, this, std::placeholders::_1));
       desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>(robot_name + "_" + std::to_string(robot_id) + "/desired_pose", 10, std::bind(&FormationAsmc::desired_pose_callback, this, std::placeholders::_1));
@@ -114,11 +117,17 @@ class FormationAsmc : public rclcpp::Node{
            (r/2)*sin(x(2))-(d*r/(2*l))*cos(x(2)), (r/2)*sin(x(2))+(d*r/(2*l))*cos(x(2));
 
       // Compute error
-      x_d_w << leader_pose(0) + x_d_l(0)*cos(leader_pose(2)) - x_d_l(1)*sin(leader_pose(2)),
-	       leader_pose(1) + x_d_l(0)*sin(leader_pose(2)) + x_d_l(1)*cos(leader_pose(2)),
-	       0;
+      if (frame_locked_mode){
+        x_d_w << leader_pose(0) + x_d_l(0)*cos(leader_pose(2)) - x_d_l(1)*sin(leader_pose(2)),
+                 leader_pose(1) + x_d_l(0)*sin(leader_pose(2)) + x_d_l(1)*cos(leader_pose(2)),
+                 0;
+      } else {
+        x_d_w << leader_pose(0) + x_d_l(0),
+                 leader_pose(1) + x_d_l(1),
+                 0;
+      }
 
-      std::cout << "Computed world pose x_d_w: " << x_d_w.transpose() << std::endl;
+      //std::cout << "Computed world pose x_d_w: " << x_d_w.transpose() << std::endl;
       
       e << x_d_w(0) - x(0),
 	   x_d_w(1) - x(1);
@@ -135,7 +144,11 @@ class FormationAsmc : public rclcpp::Node{
       // Compute control input
       uaux = kp * e + kd * e_dot;
 
+      //sigma = A.colPivHouseholderQr().solve(uaux);
+      uaux(0) = uaux(0) + leader_velocity(0);
+      uaux(1) = uaux(1) + leader_velocity(1);
       sigma = A.colPivHouseholderQr().solve(uaux);
+      std::cout << "leader_velocity: " << leader_velocity.transpose() << std::endl;
 
       // Saturate sigma
       sigma(0) = std::max(-3.0, std::min(3.0, sigma(0)));
@@ -171,6 +184,7 @@ class FormationAsmc : public rclcpp::Node{
     float kd;
     int robot_id;
     std::string robot_name;
+    bool frame_locked_mode;
 
     geometry_msgs::msg::Twist cmd_vel;
 
