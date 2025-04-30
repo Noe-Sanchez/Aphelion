@@ -104,8 +104,8 @@ class PuzzlebotAsmc : public rclcpp::Node{
 				   
       e_prev = e;
 
-      std::cout << "e: " << e.transpose() << std::endl;
-      std::cout << "yaw: " << x(2) << std::endl;
+      //std::cout << "e: " << e.transpose() << std::endl;
+      //std::cout << "yaw: " << x(2) << std::endl;
 
       // Compute control input
       uaux = kp * e + kd * e_dot;

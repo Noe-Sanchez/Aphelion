@@ -31,13 +31,15 @@ def generate_launch_description():
     for i in range(num_puzzlebots):
       robot_name = 'puzzlebot_' + str(i+1)
       robot_description = robot_desc.replace('pname', robot_name)
+      print(robot_description)
       robot_state_pub_node = Node(
                               package='robot_state_publisher',
                               executable='robot_state_publisher',
                               name='robot_state_publisher',
                               output='screen',
                               parameters=[{'robot_description': robot_description}],
-                              remappings=[('/robot_description', '/' + robot_name + '/robot_description')],
+                              remappings=[('/robot_description', '/' + robot_name + '/robot_description'),
+                                          ('joint_states', '/' + robot_name + '/joint_states')],
                               )
       nodes.append(robot_state_pub_node)
 
