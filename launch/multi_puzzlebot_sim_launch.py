@@ -63,6 +63,17 @@ def generate_launch_description():
 
       nodes.append(asmc_node)
 
+      odom_node = Node(
+                  package='aphelion',
+                  executable='odom_node',
+                  name=robot_name + '_odom_node',
+                  output='screen',
+                  parameters=[{'puzzlebot_id': i+1,
+                               'use_prefix': True }],
+                  )
+
+      nodes.append(odom_node)
+
     l_d = LaunchDescription(nodes)
 
     return l_d

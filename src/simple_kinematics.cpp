@@ -15,6 +15,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <std_msgs/msg/float32.hpp>
 
 using namespace std::chrono_literals;
 
@@ -28,18 +29,24 @@ class SimpleDynamics : public rclcpp::Node{
       this->get_parameter("use_prefix", use_prefix);
 
       // Subscribers
-      //reset_state_subscriber       = this->create_subscription<std_msgs::msg::Bool>("/reset_state", 10,  std::bind(&SimpleDynamics::reset_state_callback, this, std::placeholders::_1));
-      //control_input_subscriber     = this->create_subscription<geometry_msgs::msg::Twist>("/cmd_vel", 10, std::bind(&SimpleDynamics::control_input_callback, this, std::placeholders::_1));
       if (use_prefix){
 	reset_state_subscriber       = this->create_subscription<std_msgs::msg::Bool>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/reset_state", 10,  std::bind(&SimpleDynamics::reset_state_callback, this, std::placeholders::_1));
 	control_input_subscriber     = this->create_subscription<geometry_msgs::msg::Twist>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/cmd_vel", 10, std::bind(&SimpleDynamics::control_input_callback, this, std::placeholders::_1));
-	estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/pose", 10);
-	estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/velocity", 10);
+	//estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/pose", 10);
+	//estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/velocity", 10);
+	estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/gtruth/pose", 10);
+	estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/gtruth/velocity", 10);
+	wheel_l_publisher            = this->create_publisher<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wL", 10);
+	wheel_r_publisher            = this->create_publisher<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wR", 10);
       } else {
 	reset_state_subscriber       = this->create_subscription<std_msgs::msg::Bool>("/reset_state", 10,  std::bind(&SimpleDynamics::reset_state_callback, this, std::placeholders::_1));
 	control_input_subscriber     = this->create_subscription<geometry_msgs::msg::Twist>("/cmd_vel", 10, std::bind(&SimpleDynamics::control_input_callback, this, std::placeholders::_1));
-	estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10);
-	estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/estimator/velocity", 10);
+	//estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10);
+	//estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/estimator/velocity", 10);
+	estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/gtruth/pose", 10);
+	estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/gtruth/velocity", 10);
+	wheel_l_publisher            = this->create_publisher<std_msgs::msg::Float32>("/wL", 10);
+	wheel_r_publisher            = this->create_publisher<std_msgs::msg::Float32>("/wR", 10);
       }
 
       transform_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -49,8 +56,8 @@ class SimpleDynamics : public rclcpp::Node{
   
 
       // Initialize variables 
-      p << 0.0, 0.0, 0.0;
-      p_dot << 0.0, 0.0, 0.0;
+      p          << 0.0, 0.0, 0.0;
+      p_dot      << 0.0, 0.0, 0.0;
       p_dot_prev << 0.0, 0.0, 0.0;
 
       r = 0.1; // Wheel radius
@@ -116,9 +123,10 @@ class SimpleDynamics : public rclcpp::Node{
       transform.header.frame_id = "world";
       //transform.child_frame_id = "base_footprint";
       if (use_prefix){
-	transform.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+	//transform.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+	transform.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_gtruth";
       } else {
-	transform.child_frame_id = "puzzlebot_leader_base_footprint";
+	transform.child_frame_id = "puzzlebot_leader_gtruth";
       }
       transform.transform.translation.x = p[0];
       transform.transform.translation.y = p[1];
@@ -128,6 +136,12 @@ class SimpleDynamics : public rclcpp::Node{
       transform.transform.rotation.z = q.z();
       transform.transform.rotation.w = q.w();
 
+      // Publish wheel velocities
+      wheel_l.data = w[0];
+      wheel_r.data = w[1];
+
+      wheel_l_publisher->publish(wheel_l);
+      wheel_r_publisher->publish(wheel_r);
       transform_broadcaster->sendTransform(transform);
       estimator_pose_publisher->publish(pose);
       estimator_velocity_publisher->publish(pose_dot);
@@ -137,6 +151,8 @@ class SimpleDynamics : public rclcpp::Node{
     geometry_msgs::msg::PoseStamped pose;
     geometry_msgs::msg::TwistStamped pose_dot;
     geometry_msgs::msg::TransformStamped transform;
+    std_msgs::msg::Float32 wheel_l;
+    std_msgs::msg::Float32 wheel_r;
 
     Eigen::Vector3d p;
     Eigen::Vector3d p_dot;
@@ -152,6 +168,8 @@ class SimpleDynamics : public rclcpp::Node{
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr estimator_pose_publisher;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr estimator_velocity_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wheel_l_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wheel_r_publisher;
 
     std::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster;
 
