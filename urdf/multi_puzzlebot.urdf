@@ -2,6 +2,9 @@
 
   <link name="pname_base_footprint">
   </link>
+  <link name="laser_link"/>
+  
+  
 
   <link name="pname_base_link">
     <visual>
@@ -15,6 +18,13 @@
       <!-- origin rpy="1.57 0 3.14" xyz="0 0 0.0795" / -->
     </visual>
   </link>
+
+  <joint name="laser_joint" type="fixed">
+    <parent link="pname_base_link"/>
+    <child  link="laser_link"/>
+    <!-- Ajusta estos valores a la posición real de tu A1 -->
+    <origin xyz="0.0 0.0 0.15" rpy="0 0 0"/>
+  </joint>
 
   <link name="pname_wheel_r_link">
     <visual>

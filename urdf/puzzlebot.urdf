@@ -15,6 +15,16 @@
       <!-- origin rpy="1.57 0 3.14" xyz="0 0 0.0795" / -->
     </visual>
   </link>
+<!-- LIDAR link -->
+<link name="laser_link"/>
+
+<!-- LIDAR fixed joint onto base_link -->
+<joint name="laser_joint" type="fixed">
+  <parent link="base_link"/>
+  <child  link="laser_link"/>
+  <!-- Ajusta xyz/RPY a la posición real -->
+  <origin xyz="0.0 0.0 0.1" rpy="0 0 0"/>
+</joint>
 
   <link name="wheel_r_link">
     <visual>

@@ -1,5 +1,9 @@
 # Aphelion
 
+ros2 launch aphelion multi_puzzlebot_sim_launch.py num_puzzlebots:=[number of puzzlebots]
+
+
+
 ROS2 Humble ground robot swarming experiments
 
 # TO DO:
