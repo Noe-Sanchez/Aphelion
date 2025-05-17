@@ -13,8 +13,9 @@ find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(rp_lidar_ros REQUIRED)
+find_package(rplidar_ros REQUIRED)
 find_package(slam_toolbox REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -27,13 +28,13 @@ add_executable(simple_kinematics_node src/simple_kinematics.cpp)
 ament_target_dependencies(simple_kinematics_node rclcpp std_msgs geometry_msgs tf2_ros)
 
 add_executable(asmc_node src/asmc.cpp)
-ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros)
+ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs)
 
 add_executable(formation_asmc_node src/formation_asmc.cpp)
-ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_ros)
+ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs)
 
 add_executable(odom_node src/odom.cpp)
-ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros)
+ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs)
 
 #ament_python_install_package(${PROJECT_NAME})
 
@@ -52,5 +53,6 @@ install(TARGETS
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY meshes DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY urdf   DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
 ament_package()

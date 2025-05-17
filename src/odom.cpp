@@ -12,6 +12,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -35,11 +36,13 @@ class PuzzlebotOdom : public rclcpp::Node{
       if (use_prefix){
         estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/pose", 10);
         estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/velocity", 10);
+	odometry_publisher           = this->create_publisher<nav_msgs::msg::Odometry>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/odometry", 10);
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wL", 10, std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
       } else {
         estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10);
         estimator_velocity_publisher = this->create_publisher<geometry_msgs::msg::TwistStamped>("/estimator/velocity", 10);
+	odometry_publisher           = this->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wL", 10, std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
       }
@@ -104,6 +107,19 @@ class PuzzlebotOdom : public rclcpp::Node{
 
       estimator_pose_msg.header.stamp = this->now();
       estimator_pose_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
+  
+      odom_msg.header.stamp = this->now();
+      odom_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
+      odom_msg.child_frame_id = "base_footprint";
+      odom_msg.pose.pose = estimator_pose_msg.pose;
+      odom_msg.twist.twist = estimator_velocity_msg.twist;
+      // Diagonal covariance
+      odom_msg.pose.covariance[0] = 0.01;
+      odom_msg.pose.covariance[7] = 0.01;
+      odom_msg.pose.covariance[14] = 0.01;
+      odom_msg.pose.covariance[21] = 0.01;
+      odom_msg.pose.covariance[28] = 0.01;
+      odom_msg.pose.covariance[35] = 0.01;
 
       // Publish transform
       
@@ -138,12 +154,14 @@ class PuzzlebotOdom : public rclcpp::Node{
 
       estimator_velocity_publisher->publish(estimator_velocity_msg);
       estimator_pose_publisher->publish(estimator_pose_msg);
+      odometry_publisher->publish(odom_msg);
     }
 
   private:
     geometry_msgs::msg::TwistStamped     estimator_velocity_msg;
     geometry_msgs::msg::PoseStamped      estimator_pose_msg;
     geometry_msgs::msg::TransformStamped odom_transform_msg;
+    nav_msgs::msg::Odometry              odom_msg;
 
     Eigen::Matrix2d A;
     Eigen::Vector2d u;
@@ -163,6 +181,7 @@ class PuzzlebotOdom : public rclcpp::Node{
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_r_subscriber;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr  estimator_pose_publisher;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr estimator_velocity_publisher;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr          odometry_publisher;
 
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
 

@@ -19,6 +19,7 @@
   <depend>tf2_ros</depend>
   <depend>rplidar_ros</depend>
   <depend>slam_toolbox</depend>
+  <depend>nav_msgs</depend>
   <exec_depend>ros2launch</exec_depend>
 
   <export>

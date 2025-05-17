@@ -1,0 +1,10 @@
+- ros_topic_name: "/puzzlebot_0/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_topic_name: "/cmd_vel"
+  gz_type_name: "gz.msgs.Twist"
+  direction: BIDIRECTIONAL
+
+- topic_name: "/model/puzzlebot_0/odometry"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: BIDIRECTIONAL 
