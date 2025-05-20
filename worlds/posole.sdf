@@ -71,6 +71,7 @@
         <pose>0 0 0.050000000000000003 0 0 0</pose>
         <inertial>
           <mass>0.80000000000000004</mass>
+          <!--mass>10.80000000000000004</mass-->
           <pose>0 0 0 0 0 0</pose>
           <inertia>
             <ixx>0.070000000000000007</ixx>
@@ -171,7 +172,8 @@
             <friction>
               <ode>
                 <mu>1</mu>
-                <mu2>0.20000000000000001</mu2>
+                <!--mu2>0.20000000000000001</mu2-->
+                <mu2>20000.20000000000000001</mu2>
               </ode>
             </friction>
             <bounce/>
@@ -213,7 +215,8 @@
             <friction>
               <ode>
                 <mu>1</mu>
-                <mu2>0.20000000000000001</mu2>
+                <!--mu2>0.20000000000000001</mu2-->
+                <mu2>20000.20000000000000001</mu2>
               </ode>
             </friction>
             <bounce/>
@@ -229,6 +232,7 @@
         <pose>-0.14500000000000046 -5.5511151231254813e-17 0.0060000000000000123 3.4723978635961383e-12 1.721069681954544e-07 -1.3524914280157572e-13</pose>
         <inertial>
           <mass>0.01</mass>
+          <!--mass>30.01</mass-->
           <inertia>
             <ixx>5.1e-05</ixx>
             <iyy>5.1e-05</iyy>
@@ -319,7 +323,8 @@
       <plugin name='gz::sim::systems::DiffDrive' filename='libgz-sim8-diff-drive-system.so'>
         <left_joint>left_wheel_joint</left_joint>
         <right_joint>right_wheel_joint</right_joint>
-        <wheel_separation>0.01</wheel_separation>
+        <!--wheel_separation>0.09</wheel_separation-->
+        <wheel_separation>0.19</wheel_separation>
         <wheel_radius>0.05</wheel_radius>
         <topic>cmd_vel</topic>
 	<odom_topic>model/puzzlebot_0/odometry</odom_topic>

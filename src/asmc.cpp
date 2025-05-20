@@ -122,8 +122,12 @@ class PuzzlebotAsmc : public rclcpp::Node{
       // Saturate sigma
       //sigma(0) = std::max(-3.0, std::min(3.0, sigma(0)));
       //sigma(1) = std::max(-3.0, std::min(3.0, sigma(1)));
-      sigma(0) = std::max(-2.0, std::min(2.0, sigma(0)));
-      sigma(1) = std::max(-2.0, std::min(2.0, sigma(1)));
+      //sigma(0) = std::max(-2.0, std::min(2.0, sigma(0)));
+      //sigma(1) = std::max(-2.0, std::min(2.0, sigma(1)));
+      //sigma(0) = std::max(-0.5, std::min(0.5, sigma(0)));
+      //sigma(1) = std::max(-0.5, std::min(0.5, sigma(1)));
+      sigma(0) = std::max(-0.15, std::min(0.15, sigma(0)));
+      sigma(1) = std::max(-0.15, std::min(0.15, sigma(1)));
 
       // Publish sigma (wheel velocities)
       //cmd_vel.angular.x = sigma(0);
