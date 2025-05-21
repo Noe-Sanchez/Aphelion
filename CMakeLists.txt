@@ -5,6 +5,15 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include(FetchContent)
+
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG 0.8.0 # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+)
+FetchContent_MakeAvailable(yaml-cpp)
+
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
@@ -16,6 +25,8 @@ find_package(tf2_ros REQUIRED)
 find_package(rplidar_ros REQUIRED)
 find_package(slam_toolbox REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(aruco_interfaces REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -34,13 +45,15 @@ add_executable(formation_asmc_node src/formation_asmc.cpp)
 ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs)
 
 add_executable(odom_node src/odom.cpp)
-ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs)
+ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs aruco_interfaces yaml-cpp ament_index_cpp)
 
 #ament_python_install_package(${PROJECT_NAME})
 
 #install(PROGRAMS
 #  DESTINATION lib/${PROJECT_NAME}
 #)
+
+target_link_libraries(odom_node ${YAML_CPP_LIBRARIES})
 
 install(TARGETS
   odom_node

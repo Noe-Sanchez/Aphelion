@@ -17,6 +17,7 @@
   </link>
 <!-- LIDAR link -->
 <link name="laser_link"/>
+<link name="camera_link"/>
 
 <!-- LIDAR fixed joint onto base_link -->
 <joint name="laser_joint" type="fixed">
@@ -25,6 +26,13 @@
   <!-- Ajusta xyz/RPY a la posición real -->
   <origin xyz="0.0 0.0 0.1" rpy="0 0 0"/>
 </joint>
+
+<joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="camera_link"/>
+    <!-- Ajusta estos valores a la posición real de tu A1 -->
+    <origin xyz="0.1 0.0 0.0375" rpy="-1.57 0 -1.57"/>
+  </joint>
 
   <link name="wheel_r_link">
     <visual>
