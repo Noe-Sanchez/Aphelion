@@ -48,6 +48,7 @@ def generate_launch_description():
                              )
 
 
-    l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
+    #l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
+    l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node])
 
     return l_d

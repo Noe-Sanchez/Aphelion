@@ -8,3 +8,9 @@
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
   direction: BIDIRECTIONAL 
+
+- ros_topic_name: "/scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_topic_name: "/lidar"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: BIDIRECTIONAL
