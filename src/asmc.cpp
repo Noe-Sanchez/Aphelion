@@ -59,8 +59,9 @@ class PuzzlebotAsmc : public rclcpp::Node{
       r = 0.1; // Wheel radius
       l = 0.5; // Wheel distance
       d = 0.1; // COM location
-      kp = 0.5; // Proportional gain
-      kd = 0.5; // Derivative gain
+      kp = 0.005; // Proportional gain
+      //kd = 0.5; // Derivative gain
+      kd = 0.0; // Derivative gain
 
       u << 0.0, 0.0;
       x << 0.0, 0.0, 0.0;
