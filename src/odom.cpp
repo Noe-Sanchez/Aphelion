@@ -148,11 +148,9 @@ class PuzzlebotOdom : public rclcpp::Node{
       estimator_pose_msg.pose.orientation.w = q.w();
 
       estimator_pose_msg.header.stamp = this->now();
-      // estimator_pose_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
       estimator_pose_msg.header.frame_id = "odom";
   
       odom_msg.header.stamp = this->now();
-      // odom_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
       odom_msg.header.frame_id = "odom";
       odom_msg.child_frame_id = "base_footprint";
       odom_msg.pose.pose = estimator_pose_msg.pose;
@@ -167,29 +165,12 @@ class PuzzlebotOdom : public rclcpp::Node{
       odom_msg.pose.covariance[30] = P(2, 0);
       odom_msg.pose.covariance[31] = P(2, 1);
       odom_msg.pose.covariance[35] = P(2, 2);
-      
-
-      // Publish transform
-      
-      //odom_transform_msg.header.frame_id = "world";
-      //odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-      odom_transform_msg.header.frame_id = "map";
-      odom_transform_msg.child_frame_id = "odom";
-      odom_transform_msg.header.stamp = this->now();
-      odom_transform_msg.transform.translation.x = 0.0;
-      odom_transform_msg.transform.translation.y = 0.0;
-      odom_transform_msg.transform.rotation.x = 0.0;
-      odom_transform_msg.transform.rotation.y = 0.0;
-      odom_transform_msg.transform.rotation.z = 0.0;
-      odom_transform_msg.transform.rotation.w = 1.0;
 
       tf_broadcaster->sendTransform(odom_transform_msg);
 
       odom_transform_msg.header.stamp = this->now();
-      //odom_transform_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-      odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+      odom_transform_msg.child_frame_id = "base_footprint";
       odom_transform_msg.header.frame_id = "odom";
-      // odom_transform_msg.child_frame_id = "base_footprint";
       
       odom_transform_msg.transform.translation.x = x_hat(0);
       odom_transform_msg.transform.translation.y = x_hat(1);
@@ -272,7 +253,7 @@ class PuzzlebotOdom : public rclcpp::Node{
         
         //odom_transform_msg.header.frame_id = "world";
         //odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-        odom_transform_msg.header.frame_id = "map";
+        /*odom_transform_msg.header.frame_id = "map";
         odom_transform_msg.child_frame_id = "odom";
         odom_transform_msg.header.stamp = this->now();
         odom_transform_msg.transform.translation.x = 0.0;
@@ -280,13 +261,14 @@ class PuzzlebotOdom : public rclcpp::Node{
         odom_transform_msg.transform.rotation.x = 0.0;
         odom_transform_msg.transform.rotation.y = 0.0;
         odom_transform_msg.transform.rotation.z = 0.0;
-        odom_transform_msg.transform.rotation.w = 1.0;
+        odom_transform_msg.transform.rotation.w = 1.0;*/
 
-        tf_broadcaster->sendTransform(odom_transform_msg);
+        //tf_broadcaster->sendTransform(odom_transform_msg);
 
         odom_transform_msg.header.stamp = this->now();
         //odom_transform_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-        odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+        //odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+        odom_transform_msg.child_frame_id = "base_footprint";
         odom_transform_msg.header.frame_id = "odom";
         // odom_transform_msg.child_frame_id = "base_footprint";
         

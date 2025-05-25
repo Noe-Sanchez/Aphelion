@@ -20,6 +20,7 @@
   <depend>rplidar_ros</depend>
   <depend>slam_toolbox</depend>
   <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>yaml-cpp</depend>
   <depend>ament_index_cpp</depend>
   <depend>aruco_interfaces</depend>

@@ -16,6 +16,7 @@ from launch.substitutions import EnvironmentVariable
 def generate_launch_description():
  
     urdf_file_name = 'puzzlebot.urdf'
+    #urdf_file_name = 'multi_puzzlebot.urdf'
     urdf_default_path = os.path.join(
                         get_package_share_directory('aphelion'),
                         'urdf',
@@ -23,6 +24,8 @@ def generate_launch_description():
    
     with open(urdf_default_path, 'r') as infp:
         robot_desc = infp.read()
+
+    #robot_desc = robot_desc.replace('pname', 'puzzlebot_0')
 
     robot_state_pub_node = Node(
                             package='robot_state_publisher',
@@ -37,14 +40,15 @@ def generate_launch_description():
                  executable='asmc_node',
                  name='asmc_node',
                  output='screen',
-                 parameters=[{'use_prefix': True}], 
+                 #parameters=[{'use_prefix': True}], 
+                 parameters=[{'use_prefix': False}], 
                  )
 
     ros_gz_bridge_node = Node(package='ros_gz_bridge',
                               executable='parameter_bridge',
                               name='ros_gz_bridge',
                               output='screen',
-                              parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge.yaml')}],
+                              parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge.yaml') }],
                              )
 
 

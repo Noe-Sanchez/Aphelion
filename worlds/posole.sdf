@@ -328,7 +328,8 @@
         <wheel_separation>0.19</wheel_separation>
         <wheel_radius>0.05</wheel_radius>
         <topic>cmd_vel</topic>
-	<odom_topic>model/puzzlebot_0/odometry</odom_topic>
+	<!--odom_topic>model/puzzlebot_0/odometry</odom_topic-->
+	<odom_topic>/odom</odom_topic>
       </plugin>
       <frame name='lidar_frame' attached_to='chassis'>
         <pose>0 0 0.059999999999999998 0 0 0</pose>
