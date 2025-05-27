@@ -47,6 +47,9 @@ ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_
 add_executable(odom_node src/odom.cpp)
 ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs aruco_interfaces yaml-cpp ament_index_cpp)
 
+add_executable(restamper_node src/restamper.cpp)
+ament_target_dependencies(restamper_node rclcpp sensor_msgs geometry_msgs tf2_ros nav_msgs) 
+
 #ament_python_install_package(${PROJECT_NAME})
 
 #install(PROGRAMS
@@ -60,6 +63,7 @@ install(TARGETS
   simple_kinematics_node
   asmc_node
   formation_asmc_node
+  restamper_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
