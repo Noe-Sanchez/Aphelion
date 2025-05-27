@@ -33,7 +33,7 @@ using namespace std::chrono_literals;
 
 class PuzzlebotOdom : public rclcpp::Node{
   public:
-    PuzzlebotOdom(): Node("odom_node"){
+    PuzzlebotOdom(): Node("odom_node") {
       // Get puzzlebot id from launchfile parameter
       this->declare_parameter("puzzlebot_id", 0);
       this->get_parameter("puzzlebot_id", puzzlebot_id);
@@ -45,8 +45,9 @@ class PuzzlebotOdom : public rclcpp::Node{
       odom_msg.twist.covariance = {0};
 
       for(const auto& node : global_poses) {
-        world_poses[node["id"].as<int>()] = {node["x"].as<double>(), node["y"].as<double>()};
-        RCLCPP_INFO(get_logger(), "id: %d | x: %f y: %f", node["id"].as<int>(), node["x"].as<double>(), node["y"].as<double>());
+        world_poses[node["id"].as<int>()] = {node["pos"]["x"].as<double>(), node["pos"]["y"].as<double>(), node["rot"]["theta"].as<double>()};
+        RCLCPP_INFO(get_logger(), "id: %d | x: %f y: %f | theta: %f",
+        node["id"].as<int>(), world_poses[node["id"].as<int>()][0], world_poses[node["id"].as<int>()][1], world_poses[node["id"].as<int>()][2]);
 
       }
 
@@ -87,12 +88,14 @@ class PuzzlebotOdom : public rclcpp::Node{
            0,0,0,
            0,0,0;
 
-      Q << 0.001, 0, 0,
-           0, 0.001, 0,
-           0, 0, 0.001;
+      Q << 0.0005, 0, 0,
+           0, 0.0005, 0,
+           0, 0, 0.0005;
       
-      R << 0.05, 0,
-           0, 0.05;
+      R << 0.05, 0, 0, 0,
+           0, 0.05, 0, 0,
+           0, 0, 0.1, 0,
+           0, 0, 0, 0.1;
 
     }
 
@@ -187,9 +190,9 @@ class PuzzlebotOdom : public rclcpp::Node{
 
       odom_transform_msg.header.stamp = this->now();
       //odom_transform_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-      odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+      //odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
       odom_transform_msg.header.frame_id = "odom";
-      // odom_transform_msg.child_frame_id = "base_footprint";
+      odom_transform_msg.child_frame_id = "base_footprint";
       
       odom_transform_msg.transform.translation.x = x_hat(0);
       odom_transform_msg.transform.translation.y = x_hat(1);
@@ -210,14 +213,15 @@ class PuzzlebotOdom : public rclcpp::Node{
       geometry_msgs::msg::Pose aruco_pose;
       int aruco_id;
       bool valid = false;
-      
       for(i = 0; i < markers.marker_ids.size(); i++) {
         aruco_id = markers.marker_ids.at(i);
         aruco_pose = markers.poses.at(i);
         if(world_poses.find(aruco_id) != world_poses.end()) {
           valid = true;
           z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-                  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1;
+                  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
+                  cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
+                  sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
           
           geometry_msgs::msg::PoseStamped rviz_pose;
           rviz_pose.header.stamp = this->now();
@@ -227,10 +231,14 @@ class PuzzlebotOdom : public rclcpp::Node{
           pose_pub->publish(rviz_pose);
 
           H << -sin(x_hat(2)), cos(x_hat(2)), cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-              -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1));
+              -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+              0, 0, sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
+              0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
           
           y_hat << aruco_pose.position.x - z_hat(0),
-                  aruco_pose.position.z - z_hat(1);
+                  aruco_pose.position.z - z_hat(1),
+                  aruco_pose.orientation.x - z_hat(2),
+                  aruco_pose.orientation.z - z_hat(3);
           
           S = H * P * H.transpose() + R;
           K = P * H.transpose() * S.inverse();
@@ -286,9 +294,9 @@ class PuzzlebotOdom : public rclcpp::Node{
 
         odom_transform_msg.header.stamp = this->now();
         //odom_transform_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
-        odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
+        // odom_transform_msg.child_frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_base_footprint";
         odom_transform_msg.header.frame_id = "odom";
-        // odom_transform_msg.child_frame_id = "base_footprint";
+        odom_transform_msg.child_frame_id = "base_footprint";
         
         odom_transform_msg.transform.translation.x = x_hat(0);
         odom_transform_msg.transform.translation.y = x_hat(1);
@@ -311,11 +319,13 @@ class PuzzlebotOdom : public rclcpp::Node{
     geometry_msgs::msg::TransformStamped odom_transform_msg;
     nav_msgs::msg::Odometry              odom_msg;
 
-    Eigen::Matrix2d A, R, S;
+    Eigen::Matrix2d A;
     Eigen::Matrix3d P, F, Q;
-    Eigen::Matrix<double, 2, 3> H;
-    Eigen::Matrix<double, 3, 2> K;
-    Eigen::Vector2d u, h, z_hat, y_hat;
+    Eigen::Matrix<double, 4, 3> H;
+    Eigen::Matrix<double, 3, 4> K;
+    Eigen::Matrix4d R, S;
+    Eigen::Vector2d u;
+    Eigen::Vector4d z_hat, y_hat;
     Eigen::Vector3d x_hat;
     Eigen::Vector3d x_hat_dot;
     Eigen::Vector3d x_hat_dot_prev;
@@ -338,7 +348,6 @@ class PuzzlebotOdom : public rclcpp::Node{
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
     YAML::Node global_poses;
     std::map<int, std::vector<double>> world_poses;
-
 };
 
 int main(int argc, char * argv[]){

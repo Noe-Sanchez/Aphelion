@@ -159,7 +159,7 @@ def generate_launch_description():
         static_tf,
         robot_state_pub,
         kinematics_node,
-        asmc_node,
+       # asmc_node,
 
         # SLAM Toolbox include
         slam_include,
