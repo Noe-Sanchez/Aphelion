@@ -4,12 +4,14 @@
 #include <string>
 #include <iostream>
 #include <math.h>
+#include <eigen3/Eigen/Dense>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "std_msgs/msg/float32.hpp"
 
 using namespace std::chrono_literals;
 
@@ -21,6 +23,16 @@ class Restamper : public rclcpp::Node{
 
       odom_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Restamper::odom_callback, this, std::placeholders::_1));
       tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
+      wheel_l_pub = this->create_publisher<std_msgs::msg::Float32>("/VelocityEncL", 10);
+      wheel_r_pub = this->create_publisher<std_msgs::msg::Float32>("/VelocityEncR", 10);
+
+      encoder_timer = this->create_wall_timer(50ms, std::bind(&Restamper::encoder_timer_callback, this));
+
+      trans << 20.0,  1.68,
+	       20.0, -1.68;
+      vels       << 0.0, 0.0;
+      wheel_vels << 0.0, 0.0;
     }
 
     void lidar_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg){
@@ -41,17 +53,40 @@ class Restamper : public rclcpp::Node{
       
       transform_msg.transform.rotation = msg->pose.pose.orientation;
       
-      tf_broadcaster->sendTransform(transform_msg);
+      //tf_broadcaster->sendTransform(transform_msg);
+
+      // Publish wheel velocities
+      std_msgs::msg::Float32 wheel_msg;
+
+      vels(0) = msg->twist.twist.linear.x;
+      vels(1) = msg->twist.twist.angular.z;
+
+      wheel_vels = trans * vels;
+      wheel_l_msg.data = wheel_vels(1);
+      wheel_r_msg.data = wheel_vels(0);
+
+    }
+
+    void encoder_timer_callback(){
+      wheel_l_pub->publish(wheel_l_msg);
+      wheel_r_pub->publish(wheel_r_msg);
     }
 
   private:
     sensor_msgs::msg::LaserScan lidar_msg;
     geometry_msgs::msg::TransformStamped transform_msg;
+    std_msgs::msg::Float32 wheel_l_msg;
+    std_msgs::msg::Float32 wheel_r_msg;
+    Eigen::Matrix2d trans;
+    Eigen::Vector2d vels;
+    Eigen::Vector2d wheel_vels;
 
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr lidar_pub;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub; 
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
-    // Transform publisher
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wheel_l_pub;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wheel_r_pub;
+    rclcpp::TimerBase::SharedPtr encoder_timer;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
 };
 

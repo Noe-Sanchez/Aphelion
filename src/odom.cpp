@@ -78,9 +78,12 @@ class PuzzlebotOdom : public rclcpp::Node{
 
       // Initialize variables
       r = 0.05; // Wheel radius
-      l = 0.168; // Wheel distance
+      //l = 0.168; // Wheel distance
+      //l = 0.19; // Wheel distance
+      l = 0.168*2; // Wheel distance
 
       x_hat          << 0.284, 0.296, 1.57; // Initial state
+      //x_hat          << 0.284, 0.296, 0; // Initial state
       x_hat_dot      << 0.0, 0.0, 0.0;
       x_hat_dot_prev << 0.0, 0.0, 0.0;
       u              << 0.0, 0.0;

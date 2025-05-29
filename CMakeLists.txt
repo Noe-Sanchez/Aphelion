@@ -50,6 +50,9 @@ ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_ms
 add_executable(restamper_node src/restamper.cpp)
 ament_target_dependencies(restamper_node rclcpp sensor_msgs geometry_msgs tf2_ros nav_msgs) 
 
+add_executable(guild_navigator_node src/guild_navigator.cpp)
+ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs)
+
 #ament_python_install_package(${PROJECT_NAME})
 
 #install(PROGRAMS
@@ -64,6 +67,7 @@ install(TARGETS
   asmc_node
   formation_asmc_node
   restamper_node
+  guild_navigator_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

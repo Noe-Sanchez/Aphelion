@@ -15,3 +15,13 @@
   gz_topic_name: "/lidar"
   gz_type_name: "gz.msgs.LaserScan"
   direction: BIDIRECTIONAL
+
+- topic_name: "/camera_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: BIDIRECTIONAL
+
+- topic_name: "/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: BIDIRECTIONAL
