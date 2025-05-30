@@ -9,15 +9,21 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
+#include <tf2/convert.h>
+#include <tf2/utils.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <eigen3/Eigen/QR>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 using namespace std::chrono_literals;
 
@@ -37,16 +43,20 @@ class PuzzlebotAsmc : public rclcpp::Node{
       if (use_prefix){
 	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
 	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/model/puzzlebot_" + std::to_string(puzzlebot_id) + "/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
 	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/cmd_vel", 10);
       } else {
 	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
+	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_0/cmd_vel", 10);
       }
       // Make 0.5s timer
-      control_timer             = this->create_wall_timer(10ms, std::bind(&PuzzlebotAsmc::control_callback, this));
+      control_timer             = this->create_wall_timer(100ms, std::bind(&PuzzlebotAsmc::control_callback, this));
+      // Initialize transform listener
+      tf_buffer_   = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
       // Initialize variables 
       e << 0.0, 0.0;
@@ -59,7 +69,7 @@ class PuzzlebotAsmc : public rclcpp::Node{
       r = 0.1; // Wheel radius
       l = 0.5; // Wheel distance
       d = 0.1; // COM location
-      kp = 0.005; // Proportional gain
+      kp = 0.15; // Proportional gain
       //kd = 0.5; // Derivative gain
       kd = 0.0; // Derivative gain
 
@@ -81,17 +91,37 @@ class PuzzlebotAsmc : public rclcpp::Node{
       double roll, pitch, yaw;
       m.getRPY(roll, pitch, yaw);
 
-      //x << msg->pose.position.x, 
-      //     msg->pose.position.y,
-      x << msg->pose.pose.position.x,
-	   msg->pose.pose.position.y,
-	   yaw;
+      //x << msg->pose.pose.position.x,
+      //	   msg->pose.pose.position.y,
+      //	   yaw;
+      
+      // Get map to odom transform
+      geometry_msgs::msg::TransformStamped transform;
+      geometry_msgs::msg::Quaternion q_transform;
+      
+      try {
+	transform = tf_buffer_->lookupTransform("map", "odom", rclcpp::Time(0), rclcpp::Duration(1, 0));
+      } catch (tf2::TransformException &ex) {
+	RCLCPP_WARN(this->get_logger(), "Could not get transform: %s", ex.what());
+	return;
+      }
+
+      // Apply transform to the odometry data
+      x(0) = msg->pose.pose.position.x + transform.transform.translation.x;
+      x(1) = msg->pose.pose.position.y + transform.transform.translation.y;
+      q_transform = transform.transform.rotation;
+      x(2) = yaw + tf2::getYaw(q_transform);
+
 
     }
 
-    void desired_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
-      x_d << msg->pose.position.x, 
-	     msg->pose.position.y,
+    //void desired_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
+    void desired_pose_callback(const geometry_msgs::msg::PointStamped::SharedPtr msg){
+      //x_d << msg->pose.position.x, 
+      //	     msg->pose.position.y,
+      //	     0;
+      x_d << msg->point.x, 
+	     msg->point.y,
 	     0;
     }
 
@@ -164,9 +194,14 @@ class PuzzlebotAsmc : public rclcpp::Node{
     rclcpp::TimerBase::SharedPtr control_timer; 
     //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr estimator_pose_subscriber;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr estimator_pose_subscriber;
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr desired_pose_subscriber;
+    //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr desired_pose_subscriber;
+    rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr desired_pose_subscriber;
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_vel_publisher;
+
+    // Transform listener for map frame
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
     int puzzlebot_id;
 };

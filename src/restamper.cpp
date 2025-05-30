@@ -53,7 +53,7 @@ class Restamper : public rclcpp::Node{
       
       transform_msg.transform.rotation = msg->pose.pose.orientation;
       
-      //tf_broadcaster->sendTransform(transform_msg);
+      tf_broadcaster->sendTransform(transform_msg);
 
       // Publish wheel velocities
       std_msgs::msg::Float32 wheel_msg;
