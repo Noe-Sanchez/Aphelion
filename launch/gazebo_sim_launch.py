@@ -51,8 +51,40 @@ def generate_launch_description():
                               parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge.yaml') }],
                              )
 
+    rviz_node = Node(package='rviz2',
+                              executable='rviz2',
+                              name='rviz2',
+                              output='screen',
+                             )
+    
+    restamper_node = Node(package='aphelion',
+                              executable='restamper_node',
+                              name='restamper_node',
+                              output='screen',
+                             )
+
+    static_transform_node = Node(package='tf2_ros',
+                              executable='static_transform_publisher',
+                              name='map_to_odom',
+                              output='screen',
+                              arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
+                             )
+    
+    odom_node = Node(package='aphelion',
+                              executable='odom_node',
+                              name='odom_node',
+                              output='screen',
+                              parameters=[{"use_prefix": False, 'sim_time': True}],
+                             )
+
+    marker_publisher_node = Node(package='aruco_loc',
+                              executable='markers_publisher_node',
+                              name='markers_publisher_node',
+                              output='screen',
+                              parameters=[{"use_prefix": False, "show_window": False, "markerLength": 0.11}],
+                             )
 
     #l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
-    l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node])
+    l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
 
     return l_d

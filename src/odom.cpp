@@ -25,6 +25,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <eigen3/Eigen/QR>
 #include "std_msgs/msg/float32.hpp"
+#include "std_msgs/msg/u_int32.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
 #include "rclcpp/qos.hpp"
@@ -40,6 +41,9 @@ class PuzzlebotOdom : public rclcpp::Node{
 
       this->declare_parameter("use_prefix", false);
       this->get_parameter("use_prefix", use_prefix);
+
+      this->declare_parameter("sim_time", false);
+      this->get_parameter("sim_time", sim_time);
 
       global_poses = YAML::LoadFile(ament_index_cpp::get_package_share_directory("aphelion") + "/config/marker_poses.yaml");
       odom_msg.twist.covariance = {0};
@@ -71,6 +75,17 @@ class PuzzlebotOdom : public rclcpp::Node{
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncL", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncR", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
       }
+
+      if(sim_time){
+        time = 0;
+        prev_time = 0;
+        sim_time_subscriber = this->create_subscription<std_msgs::msg::UInt32>("/sim_time", 10, std::bind(&PuzzlebotOdom::time_callback, this, std::placeholders::_1));
+      }
+
+      dt = sim_time ? 0.1 : 0.01;
+      time = 0;
+      prev_time = 0;
+
       pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/aruco_poses_rviz", 10);
 
       control_timer                  = this->create_wall_timer(10ms, std::bind(&PuzzlebotOdom::control_callback, this));
@@ -80,7 +95,7 @@ class PuzzlebotOdom : public rclcpp::Node{
       r = 0.05; // Wheel radius
       //l = 0.168; // Wheel distance
       //l = 0.19; // Wheel distance
-      l = 0.168*2; // Wheel distance
+      l = 0.168; // Wheel distance
 
       x_hat          << 0.284, 0.296, 1.57; // Initial state
       //x_hat          << 0.284, 0.296, 0; // Initial state
@@ -99,6 +114,9 @@ class PuzzlebotOdom : public rclcpp::Node{
            0, 0.05, 0, 0,
            0, 0, 0.1, 0,
            0, 0, 0, 0.1;
+      
+      integrate = false;
+      integrated = true;
 
     }
 
@@ -125,71 +143,73 @@ class PuzzlebotOdom : public rclcpp::Node{
            0, 1, cos(x_hat(2)) * (u(0) + u(1)) * r / 2 * 0.01,
            0, 0, 1;
       
-      P = F * P * F.transpose() + Q;
-      
-      // Trapezoidal integral of x_hat_dot
-      x_hat += 0.01 * 0.5 * (x_hat_dot + x_hat_dot_prev);
-      x_hat_dot_prev = x_hat_dot;
+      if(!sim_time || (integrate && !integrated)){
+        P = F * P * F.transpose() + Q;
 
-      // Wrap yaw
-      x_hat(2) = fmod(x_hat(2) + M_PI, 2*M_PI) - M_PI;
+        // Trapezoidal integral of x_hat_dot
+        x_hat += dt * 0.5 * (x_hat_dot + x_hat_dot_prev);
+        x_hat_dot_prev = x_hat_dot;
 
-      
+        // Wrap yaw
+        x_hat(2) = fmod(x_hat(2) + M_PI, 2*M_PI) - M_PI;
 
-      // Publish
-      estimator_velocity_msg.twist.linear.x  = x_hat_dot(0);
-      estimator_velocity_msg.twist.linear.y  = x_hat_dot(1);
-      estimator_velocity_msg.twist.angular.z = x_hat_dot(2);
+        integrated = true;
 
-      estimator_velocity_msg.header.stamp = this->now();
-      estimator_velocity_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
+        // Publish
+        estimator_velocity_msg.twist.linear.x  = x_hat_dot(0);
+        estimator_velocity_msg.twist.linear.y  = x_hat_dot(1);
+        estimator_velocity_msg.twist.angular.z = x_hat_dot(2);
 
-      estimator_pose_msg.pose.position.x = x_hat(0);
-      estimator_pose_msg.pose.position.y = x_hat(1);
+        estimator_velocity_msg.header.stamp = this->now();
+        estimator_velocity_msg.header.frame_id = "puzzlebot_" + std::to_string(puzzlebot_id) + "_odom";
 
-      Eigen::Quaterniond q(Eigen::AngleAxisd(x_hat(2), Eigen::Vector3d::UnitZ()));
-      estimator_pose_msg.pose.orientation.x = q.x();
-      estimator_pose_msg.pose.orientation.y = q.y();
-      estimator_pose_msg.pose.orientation.z = q.z();
-      estimator_pose_msg.pose.orientation.w = q.w();
+        estimator_pose_msg.pose.position.x = x_hat(0);
+        estimator_pose_msg.pose.position.y = x_hat(1);
 
-      estimator_pose_msg.header.stamp = this->now();
-      estimator_pose_msg.header.frame_id = "odom";
-  
-      odom_msg.header.stamp = this->now();
-      odom_msg.header.frame_id = "odom";
-      odom_msg.child_frame_id = "base_footprint";
-      odom_msg.pose.pose = estimator_pose_msg.pose;
-      odom_msg.twist.twist = estimator_velocity_msg.twist;
-      // Diagonal covariance
-      odom_msg.pose.covariance[0] = P(0, 0);
-      odom_msg.pose.covariance[1] = P(0, 1);
-      odom_msg.pose.covariance[5] = P(0, 2);
-      odom_msg.pose.covariance[6] = P(1, 0);
-      odom_msg.pose.covariance[7] = P(1, 1);
-      odom_msg.pose.covariance[11] = P(1, 2);
-      odom_msg.pose.covariance[30] = P(2, 0);
-      odom_msg.pose.covariance[31] = P(2, 1);
-      odom_msg.pose.covariance[35] = P(2, 2);
+        Eigen::Quaterniond q(Eigen::AngleAxisd(x_hat(2), Eigen::Vector3d::UnitZ()));
+        estimator_pose_msg.pose.orientation.x = q.x();
+        estimator_pose_msg.pose.orientation.y = q.y();
+        estimator_pose_msg.pose.orientation.z = q.z();
+        estimator_pose_msg.pose.orientation.w = q.w();
 
-      tf_broadcaster->sendTransform(odom_transform_msg);
+        estimator_pose_msg.header.stamp = this->now();
+        estimator_pose_msg.header.frame_id = "odom";
+    
+        odom_msg.header.stamp = this->now();
+        odom_msg.header.frame_id = "odom";
+        odom_msg.child_frame_id = "base_footprint";
+        odom_msg.pose.pose = estimator_pose_msg.pose;
+        odom_msg.twist.twist = estimator_velocity_msg.twist;
+        // Diagonal covariance
+        odom_msg.pose.covariance[0] = P(0, 0);
+        odom_msg.pose.covariance[1] = P(0, 1);
+        odom_msg.pose.covariance[5] = P(0, 2);
+        odom_msg.pose.covariance[6] = P(1, 0);
+        odom_msg.pose.covariance[7] = P(1, 1);
+        odom_msg.pose.covariance[11] = P(1, 2);
+        odom_msg.pose.covariance[30] = P(2, 0);
+        odom_msg.pose.covariance[31] = P(2, 1);
+        odom_msg.pose.covariance[35] = P(2, 2);
 
-      odom_transform_msg.header.stamp = this->now();
-      odom_transform_msg.child_frame_id = "base_footprint";
-      odom_transform_msg.header.frame_id = "odom";
-      
-      odom_transform_msg.transform.translation.x = x_hat(0);
-      odom_transform_msg.transform.translation.y = x_hat(1);
-      odom_transform_msg.transform.rotation.x = q.x();
-      odom_transform_msg.transform.rotation.y = q.y();
-      odom_transform_msg.transform.rotation.z = q.z();
-      odom_transform_msg.transform.rotation.w = q.w();
+        tf_broadcaster->sendTransform(odom_transform_msg);
 
-      tf_broadcaster->sendTransform(odom_transform_msg);
+        odom_transform_msg.header.stamp = this->now();
+        odom_transform_msg.child_frame_id = "base_footprint";
+        odom_transform_msg.header.frame_id = "odom";
+        
+        odom_transform_msg.transform.translation.x = x_hat(0);
+        odom_transform_msg.transform.translation.y = x_hat(1);
+        odom_transform_msg.transform.rotation.x = q.x();
+        odom_transform_msg.transform.rotation.y = q.y();
+        odom_transform_msg.transform.rotation.z = q.z();
+        odom_transform_msg.transform.rotation.w = q.w();
 
-      estimator_velocity_publisher->publish(estimator_velocity_msg);
-      estimator_pose_publisher->publish(estimator_pose_msg);
-      odometry_publisher->publish(odom_msg);
+        tf_broadcaster->sendTransform(odom_transform_msg);
+
+        estimator_velocity_publisher->publish(estimator_velocity_msg);
+        estimator_pose_publisher->publish(estimator_pose_msg);
+        odometry_publisher->publish(odom_msg);
+      }
     }
 
     void vision_callback(const aruco_interfaces::msg::ArucoMarkers &markers) {
@@ -298,6 +318,15 @@ class PuzzlebotOdom : public rclcpp::Node{
       }
     }
 
+    void time_callback(const std_msgs::msg::UInt32 &msg) {
+      time = msg.data;
+      if(time / 100000000 != prev_time / 100000000){
+        integrate = true;
+        integrated = false;
+      }
+      prev_time = time;
+    }
+
   private:
     geometry_msgs::msg::TwistStamped     estimator_velocity_msg;
     geometry_msgs::msg::PoseStamped      estimator_pose_msg;
@@ -315,13 +344,16 @@ class PuzzlebotOdom : public rclcpp::Node{
     Eigen::Vector3d x_hat_dot;
     Eigen::Vector3d x_hat_dot_prev;
     Eigen::Vector2d helper;
-    float r;
-    float l;
-    bool use_prefix;
+    float r, l;
+    double dt;
+    bool use_prefix, sim_time, integrate, integrated;
     int puzzlebot_id;
+
+    uint32_t time, prev_time;
 
     rclcpp::TimerBase::SharedPtr control_timer;
 
+    rclcpp::Subscription<std_msgs::msg::UInt32>::SharedPtr        sim_time_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_l_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_r_subscriber;
     rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr        aruco_subscriber;
