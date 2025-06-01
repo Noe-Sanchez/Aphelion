@@ -19,6 +19,10 @@ using namespace std::chrono_literals;
 class Restamper : public rclcpp::Node{
   public:
     Restamper(): Node("restamper_node"){
+      // Declare argument bool
+      this->declare_parameter<bool>("use_gz_odom", false);
+      this->get_parameter("use_gz_odom", use_gz_odom);
+
       nanosecond_pub = this->create_publisher<std_msgs::msg::UInt32>("/sim_time", 10);
 
       lidar_sub = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 10, std::bind(&Restamper::lidar_callback, this, std::placeholders::_1));
@@ -73,8 +77,10 @@ class Restamper : public rclcpp::Node{
 
       odom_msg.pose.pose.orientation = transform_msg.transform.rotation;
       
-      // tf_broadcaster->sendTransform(transform_msg);
-      odom_pub->publish(odom_msg);
+      if (use_gz_odom){
+	tf_broadcaster->sendTransform(transform_msg);
+	odom_pub->publish(odom_msg);
+      }
 
       // Publish wheel velocities
       std_msgs::msg::Float32 wheel_msg;
@@ -94,6 +100,7 @@ class Restamper : public rclcpp::Node{
     }
 
   private:
+    bool use_gz_odom;
     sensor_msgs::msg::LaserScan lidar_msg;
     nav_msgs::msg::Odometry odom_msg;
     geometry_msgs::msg::TransformStamped transform_msg;

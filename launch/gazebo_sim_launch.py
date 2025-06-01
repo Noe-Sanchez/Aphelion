@@ -1,5 +1,5 @@
 #IMPORTS REQUIRED TO SET THE PACKAGE ADDRESS (DIRECTORIES)
-import os
+import os, sys
 from ament_index_python.packages import get_package_share_directory
 
 #IMPORTS REQUIRED FOR Launching Nodes
@@ -7,7 +7,7 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 #IMPORTS REQUIRED FOR EVENTS AND ACTIONS
-from launch.actions import  EmitEvent, LogInfo, RegisterEventHandler
+from launch.actions import  EmitEvent, LogInfo, RegisterEventHandler, DeclareLaunchArgument
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch.substitutions import EnvironmentVariable
@@ -25,7 +25,9 @@ def generate_launch_description():
     with open(urdf_default_path, 'r') as infp:
         robot_desc = infp.read()
 
-    #robot_desc = robot_desc.replace('pname', 'puzzlebot_0')
+    # Gazebo launch argument
+    gz_sim_arg = sys.argv[4:][0].split('=')[1] == "True"
+    print(f"Gazebo simulation mode: {'Enabled' if gz_sim_arg else 'Disabled'}")
 
     robot_state_pub_node = Node(
                             package='robot_state_publisher',
@@ -48,7 +50,7 @@ def generate_launch_description():
                               executable='parameter_bridge',
                               name='ros_gz_bridge',
                               output='screen',
-                              parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge.yaml') }],
+                              parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge' + ('_gazebo' if gz_sim_arg else '_kalman') + '.yaml')}],
                              )
 
     rviz_node = Node(package='rviz2',
@@ -61,6 +63,7 @@ def generate_launch_description():
                               executable='restamper_node',
                               name='restamper_node',
                               output='screen',
+                              parameters=[{"use_gz_odom": gz_sim_arg}],
                              )
 
     static_transform_node = Node(package='tf2_ros',
@@ -85,6 +88,10 @@ def generate_launch_description():
                              )
 
     #l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
-    l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
+    #l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
+    if gz_sim_arg:
+      l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node])
+    else:
+      l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, odom_node, marker_publisher_node])
 
     return l_d

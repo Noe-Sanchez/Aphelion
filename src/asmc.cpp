@@ -47,7 +47,8 @@ class PuzzlebotAsmc : public rclcpp::Node{
 	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/cmd_vel", 10);
       } else {
 	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
+	//estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
+	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
 	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
 	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
 	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));

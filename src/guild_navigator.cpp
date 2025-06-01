@@ -29,7 +29,8 @@ class GuildNavigator : public rclcpp::Node{
 
       // Map subscriber
       map_subscriber      = this->create_subscription<nav_msgs::msg::OccupancyGrid>("/map", 10, std::bind(&GuildNavigator::map_callback, this, std::placeholders::_1));
-      odometry_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&GuildNavigator::odometry_callback, this, std::placeholders::_1));
+      //odometry_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&GuildNavigator::odometry_callback, this, std::placeholders::_1));
+      odometry_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&GuildNavigator::odometry_callback, this, std::placeholders::_1));
       path_publisher      = this->create_publisher<visualization_msgs::msg::Marker>("/astar/path", 10);
       visited_publisher   = this->create_publisher<visualization_msgs::msg::MarkerArray>("/astar/visited", 10);
       goal_subscriber     = this->create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 10, std::bind(&GuildNavigator::goal_callback, this, std::placeholders::_1));
