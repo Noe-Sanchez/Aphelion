@@ -22,6 +22,7 @@ class Restamper : public rclcpp::Node{
       // Declare argument bool
       this->declare_parameter<bool>("use_gz_odom", false);
       this->get_parameter("use_gz_odom", use_gz_odom);
+      RCLCPP_INFO(this->get_logger(), "use_gz_odom: %s", use_gz_odom ? "true" : "false");
 
       nanosecond_pub = this->create_publisher<std_msgs::msg::UInt32>("/sim_time", 10);
 
@@ -29,7 +30,7 @@ class Restamper : public rclcpp::Node{
       lidar_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("/scan2", 10);
 
       odom_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Restamper::odom_callback, this, std::placeholders::_1));
-      odom_pub = this->create_publisher<nav_msgs::msg::Odometry>("/odom2", 10);
+      odom_pub = this->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
       tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
       wheel_l_pub = this->create_publisher<std_msgs::msg::Float32>("/VelocityEncL", 10);
@@ -63,14 +64,16 @@ class Restamper : public rclcpp::Node{
       odom_msg.header.frame_id = "odom";
       odom_msg.child_frame_id = "base_footprint";
 
-      transform_msg.transform.translation.x = -msg->pose.pose.position.y + 0.284;
-      transform_msg.transform.translation.y = msg->pose.pose.position.x + 0.296;
+      //transform_msg.transform.translation.x = -msg->pose.pose.position.y + 0.284;
+      //transform_msg.transform.translation.y = msg->pose.pose.position.x + 0.296;
+      transform_msg.transform.translation.x = msg->pose.pose.position.x; 
+      transform_msg.transform.translation.y = msg->pose.pose.position.y;
       transform_msg.transform.translation.z = msg->pose.pose.position.z;
 
       transform_msg.transform.rotation = msg->pose.pose.orientation;
       
-      transform_msg.transform.rotation.w = msg->pose.pose.orientation.w * 0.7071 - msg->pose.pose.orientation.z * 0.7071;
-      transform_msg.transform.rotation.z = msg->pose.pose.orientation.w * 0.7071 + msg->pose.pose.orientation.z * 0.7071;
+      //transform_msg.transform.rotation.w = msg->pose.pose.orientation.w * 0.7071 - msg->pose.pose.orientation.z * 0.7071;
+      //transform_msg.transform.rotation.z = msg->pose.pose.orientation.w * 0.7071 + msg->pose.pose.orientation.z * 0.7071;
       
       odom_msg.pose.pose.position.x = transform_msg.transform.translation.x;
       odom_msg.pose.pose.position.y = transform_msg.transform.translation.y;

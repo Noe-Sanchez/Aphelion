@@ -5,7 +5,7 @@
   direction: BIDIRECTIONAL
 
 #- topic_name: "/model/puzzlebot_0/odometry"
-- ros_topic_name: "/odometry"
+- ros_topic_name: "/odom"
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
   gz_topic_name: "/odom"
