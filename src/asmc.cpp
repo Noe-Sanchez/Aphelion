@@ -48,8 +48,9 @@ class PuzzlebotAsmc : public rclcpp::Node{
       } else {
 	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
 	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
 	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_0/cmd_vel", 10);
       }
       // Make 0.5s timer
@@ -115,14 +116,14 @@ class PuzzlebotAsmc : public rclcpp::Node{
 
     }
 
-    //void desired_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
-    void desired_pose_callback(const geometry_msgs::msg::PointStamped::SharedPtr msg){
-      //x_d << msg->pose.position.x, 
-      //	     msg->pose.position.y,
+    void desired_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
+    //void desired_pose_callback(const geometry_msgs::msg::PointStamped::SharedPtr msg){
+      x_d << msg->pose.position.x, 
+      	     msg->pose.position.y,
+      	     0;
+      //x_d << msg->point.x, 
+      //	     msg->point.y,
       //	     0;
-      x_d << msg->point.x, 
-	     msg->point.y,
-	     0;
     }
 
     void control_callback(){
@@ -194,8 +195,8 @@ class PuzzlebotAsmc : public rclcpp::Node{
     rclcpp::TimerBase::SharedPtr control_timer; 
     //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr estimator_pose_subscriber;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr estimator_pose_subscriber;
-    //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr desired_pose_subscriber;
-    rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr desired_pose_subscriber;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr desired_pose_subscriber;
+    //rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr desired_pose_subscriber;
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_vel_publisher;
 

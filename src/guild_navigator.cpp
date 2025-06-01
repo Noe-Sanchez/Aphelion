@@ -34,7 +34,9 @@ class GuildNavigator : public rclcpp::Node{
       visited_publisher   = this->create_publisher<visualization_msgs::msg::MarkerArray>("/astar/visited", 10);
       goal_subscriber     = this->create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 10, std::bind(&GuildNavigator::goal_callback, this, std::placeholders::_1));
 
-      waypoint_timer = this->create_wall_timer(100ms, std::bind(&GuildNavigator::waypoint_callback, this)); 
+      target_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/desired_pose", 10);
+
+      //waypoint_timer = this->create_wall_timer(100ms, std::bind(&GuildNavigator::waypoint_callback, this)); 
       
       std::cout << "Init A* node" << std::flush;
       
@@ -45,6 +47,8 @@ class GuildNavigator : public rclcpp::Node{
 
   void goal_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
     current_goal = *msg;
+
+    astar(); // Call A* algorithm when goal is received
   }
 
   void odometry_callback(const nav_msgs::msg::Odometry::SharedPtr msg){
@@ -70,9 +74,45 @@ class GuildNavigator : public rclcpp::Node{
   }
 
 
-  void waypoint_callback(){}
+  void waypoint_callback(){
+    // Waypoint following of visited_nodes
+    auto& marker = visited_nodes.markers[current_waypoint]; 
+    current_target.pose.position.x = marker.pose.position.x;
+    current_target.pose.position.y = marker.pose.position.y;
+    current_target.pose.position.z = marker.pose.position.z;
+    current_target.header.frame_id = "map";
+    current_target.header.stamp = this->now();
+    target_publisher->publish(current_target);
+
+    // Compute norm2 of current odometry position and target position
+    double norm2 = std::sqrt(
+      std::pow(current_odometry.pose.pose.position.x - marker.pose.position.x, 2) +
+      std::pow(current_odometry.pose.pose.position.y - marker.pose.position.y, 2)
+    );
+
+    if ( norm2 < 0.2 ) {
+      RCLCPP_INFO(this->get_logger(), "Reached waypoint %d at (%f, %f)", current_waypoint, marker.pose.position.x, marker.pose.position.y);
+      current_waypoint++;
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Moving to waypoint %d at (%f, %f), distance: %f", current_waypoint, marker.pose.position.x, marker.pose.position.y, norm2);
+    }
+
+    // If we reached the last waypoint, deregister the timer
+    if (current_waypoint >= visited_nodes.markers.size()) {
+      RCLCPP_INFO(this->get_logger(), "Reached the last waypoint, stopping navigation");
+      waypoint_timer->cancel();
+      current_waypoint = 0; // Reset for next navigation
+    }
+
+  }
 
   void astar(){
+    auto initial_time = this->now();
+
+    visited_marker.color.r = 1.0f;
+    visited_marker.color.g = 0.0f;
+    visited_marker.color.b = 0.0f;
+
     std::cout << "Starting A* algorithm" << std::endl;
     // A* algorithm implementation
 
@@ -111,49 +151,82 @@ class GuildNavigator : public rclcpp::Node{
     while (!open_set.empty()) {
       // Find the node with the lowest f score on the open set
       auto it = std::min_element(open_set.begin(), open_set.end(), [&](const Eigen::Vector2i& a, const Eigen::Vector2i& b) {
-				int f_a = (a - Eigen::Vector2i(goal_x, goal_y)).norm();
-				int f_b = (b - Eigen::Vector2i(goal_x, goal_y)).norm();
-				return f_a < f_b;
-			}); 
+	int f_a = (a - Eigen::Vector2i(goal_x, goal_y)).norm();
+	int f_b = (b - Eigen::Vector2i(goal_x, goal_y)).norm();
+	return f_a < f_b;
+      }); 
+      
       current_node = *it;
-			open_set.erase(it);
-			closed_set.push_back(current_node);
+      open_set.erase(it);
+      closed_set.push_back(current_node);
 
-			// Check if we reached the goal
-			if (current_node.x() == goal_x && current_node.y() == goal_y) {
-				RCLCPP_INFO(this->get_logger(), "Reached goal at (%d, %d)", goal_x, goal_y);
-				break;
-			}
+      // Check if we reached the goal
+      if (current_node.x() == goal_x && current_node.y() == goal_y) {
+	RCLCPP_INFO(this->get_logger(), "Reached goal at (%d, %d)", goal_x, goal_y);
+	visited_marker.color.r = 0.0f;
+	visited_marker.color.g = 1.0f;
+	visited_marker.color.r = 0.0f;
+	break;
+      }
 
-			// Check neighbors
-			for (int dx = -1; dx <= 1; ++dx) {
-				for (int dy = -1; dy <= 1; ++dy) {
-					if ((dx == 0 && dy == 0) || (abs(dx) + abs(dy) != 1)) continue; // Skip self and diagonal moves
+      // Check neighbors
+      for (int dx = -1; dx <= 1; ++dx) {
+	for (int dy = -1; dy <= 1; ++dy) {
+	  //if ((dx == 0 && dy == 0) || (abs(dx) + abs(dy) != 1)) continue; // Skip self and diagonal moves
+	  if (dx == 0 && dy == 0) continue; // Skip self
+	  int neighbor_x = current_node.x() + dx;
+	  int neighbor_y = current_node.y() + dy;
 
-					int neighbor_x = current_node.x() + dx;
-					int neighbor_y = current_node.y() + dy;
+          // Check if neighbor is within bounds and not occupied
+          //if (neighbor_x < 0 || neighbor_x >= map_matrix.cols() || neighbor_y < 0 || neighbor_y >= map_matrix.rows() ||
+          //		map_matrix(neighbor_y, neighbor_x) !=0) {
+          if (neighbor_x < 0 || neighbor_x >= map_matrix.cols() || neighbor_y < 0 || neighbor_y >= map_matrix.rows() ||
+          		map_matrix(neighbor_y, neighbor_x) == 100) {
+          	continue;
+          }
 
-					// Check if neighbor is within bounds and not occupied
-					//if (neighbor_x < 0 || neighbor_x >= map_matrix.cols() || neighbor_y < 0 || neighbor_y >= map_matrix.rows() ||
-					//		map_matrix(neighbor_y, neighbor_x) !=0) {
-					if (neighbor_x < 0 || neighbor_x >= map_matrix.cols() || neighbor_y < 0 || neighbor_y >= map_matrix.rows() ||
-							map_matrix(neighbor_y, neighbor_x) == 100) {
-						continue;
-					}
+	  // Validate if neighbour is not r units close to a wall
 
-					Eigen::Vector2i neighbor(neighbor_x, neighbor_y);
+	  // Do depth 2 BFS to validate if the neighbor is not too close to a wall
+	  int depth = 2;
+	  bool is_valid = true;
+	  for (int d = 1; d <= depth; ++d) {
+	    for (int ddx = -1; ddx <= 1; ++ddx) {
+	      for (int ddy = -1; ddy <= 1; ++ddy) {
+		//if ((ddx == 0 && ddy == 0) || (abs(ddx) + abs(ddy) != 1)) continue; // Skip self and diagonal moves
+		if (ddx == 0 && ddy == 0) continue; // Skip self 
+		int wall_x = neighbor_x + ddx * d;
+		int wall_y = neighbor_y + ddy * d;
+		if (wall_x < 0 || wall_x >= map_matrix.cols() || wall_y < 0 || wall_y >= map_matrix.rows() ||
+		    map_matrix(wall_y, wall_x) == 100) {
+		  RCLCPP_DEBUG(this->get_logger(), "Neighbor (%d, %d) is too close to a wall, wall is at (%d, %d)", neighbor_x, neighbor_y, wall_x, wall_y);
+		  is_valid = false;
+		  break;
+		}
+	      }
+	      if (!is_valid) break;
+	    }
+	    if (!is_valid) break;
+	  }
+	  if (!is_valid) {
+	    continue; // Skip this neighbor if it's too close to a wall
+	  }
 
-					// If the neighbor is already in closed set, skip it
-					if (std::find(closed_set.begin(), closed_set.end(), neighbor) != closed_set.end()) {
-						continue;
-					}
 
-					// If the neighbor is not in open set, add it
-					if (std::find(open_set.begin(), open_set.end(), neighbor) == open_set.end()) {
-						open_set.push_back(neighbor);
-					}
-				}
-			}
+          
+          Eigen::Vector2i neighbor(neighbor_x, neighbor_y);
+          
+          // If the neighbor is already in closed set, skip it
+          if (std::find(closed_set.begin(), closed_set.end(), neighbor) != closed_set.end()) {
+	    continue;
+          }
+          
+          // If the neighbor is not in open set, add it
+          if (std::find(open_set.begin(), open_set.end(), neighbor) == open_set.end()) {
+	    open_set.push_back(neighbor);
+          }
+	}
+      }
 
 
     }
@@ -161,7 +234,7 @@ class GuildNavigator : public rclcpp::Node{
     // If we reached here, we either found the goal or exhausted all possibilities
     if (open_set.empty()) {
       RCLCPP_ERROR(this->get_logger(), "No path found to the goal (%d, %d)", goal_x, goal_y);
-      return;
+      //return;
     }
     RCLCPP_INFO(this->get_logger(), "Pathfinding completed, preparing to visualize path");
 
@@ -170,7 +243,7 @@ class GuildNavigator : public rclcpp::Node{
     current_path.header.stamp = this->now();
     current_path.type = visualization_msgs::msg::Marker::LINE_STRIP;
     current_path.action = visualization_msgs::msg::Marker::ADD;
-    current_path.scale.x = 0.1;
+    current_path.scale.x = 0.01;
     current_path.color.r = 0.0f;
     current_path.color.g = 1.0f;
     current_path.color.b = 0.0f;
@@ -179,15 +252,17 @@ class GuildNavigator : public rclcpp::Node{
     geometry_msgs::msg::Point start_point;
     start_point.x = current_odometry.pose.pose.position.x;
     start_point.y = current_odometry.pose.pose.position.y;
-    start_point.z = 0.0;
+    start_point.z = 0.2;
     current_path.points.push_back(start_point);
+
     for (const auto& node : closed_set) {
-			geometry_msgs::msg::Point point;
-			point.x = node.x() * current_map.info.resolution + current_map.info.origin.position.x;
-			point.y = node.y() * current_map.info.resolution + current_map.info.origin.position.y;
-			point.z = 0.0;
-			current_path.points.push_back(point);
-		}
+      geometry_msgs::msg::Point point;
+      point.x = node.x() * current_map.info.resolution + current_map.info.origin.position.x + current_map.info.resolution / 2.0;
+      point.y = node.y() * current_map.info.resolution + current_map.info.origin.position.y + current_map.info.resolution / 2.0;
+      point.z = 0.0;
+      current_path.points.push_back(point);
+    }
+
     geometry_msgs::msg::Point goal_point;
     goal_point.x = current_goal.pose.position.x;
     goal_point.y = current_goal.pose.position.y;
@@ -198,7 +273,6 @@ class GuildNavigator : public rclcpp::Node{
     
     // Visualize visited nodes
     visited_nodes.markers.clear();
-    visualization_msgs::msg::Marker visited_marker;
     visited_marker.header.frame_id = "map";
     visited_marker.header.stamp = this->now();
     visited_marker.type = visualization_msgs::msg::Marker::CUBE;
@@ -206,13 +280,14 @@ class GuildNavigator : public rclcpp::Node{
     visited_marker.scale.x = current_map.info.resolution;
     visited_marker.scale.y = current_map.info.resolution;
     visited_marker.scale.z = current_map.info.resolution;
-    visited_marker.color.r = 1.0f;
+    /*visited_marker.color.r = 1.0f;
     visited_marker.color.g = 0.0f;
-    visited_marker.color.b = 0.0f;
+    visited_marker.color.b = 0.0f;*/
     visited_marker.color.a = 0.5f;
     visited_marker.id = 0;
     visited_nodes.markers.push_back(visited_marker);
     visited_publisher->publish(visited_nodes);
+    visited_nodes.markers.clear();
     visited_marker.action = visualization_msgs::msg::Marker::ADD;
     for (const auto& node : closed_set) {
       visited_marker.pose.position.x = node.x() * current_map.info.resolution + current_map.info.origin.position.x + current_map.info.resolution / 2.0;
@@ -222,10 +297,24 @@ class GuildNavigator : public rclcpp::Node{
       visited_nodes.markers.push_back(visited_marker);
     }
     visited_publisher->publish(visited_nodes);
+
+    auto elapsed_time = this->now() - initial_time;
+    RCLCPP_INFO(this->get_logger(), "A* algorithm completed in %ld ms", elapsed_time.nanoseconds() / 1000000);
+
+    // Reset current waypoint
+    current_waypoint = 0;
+    // Register timer for waypoint following
+    if (!waypoint_timer) {
+      waypoint_timer = this->create_wall_timer(100ms, std::bind(&GuildNavigator::waypoint_callback, this));
+    } else {
+      waypoint_timer->reset();
+    }
+
   }	
 
   private:
     std::string map_file;
+    int current_waypoint = 0;
 
     Eigen::MatrixXi map_matrix;
     std::vector<Eigen::Vector2i> closed_set;
@@ -237,12 +326,15 @@ class GuildNavigator : public rclcpp::Node{
     visualization_msgs::msg::MarkerArray visited_nodes;
     geometry_msgs::msg::PoseStamped current_goal;
     geometry_msgs::msg::Pose old_origin;
+    visualization_msgs::msg::Marker visited_marker;
+    geometry_msgs::msg::PoseStamped current_target;
 
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_subscriber;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscriber;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr path_publisher;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visited_publisher;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_subscriber;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_publisher;
 
     rclcpp::TimerBase::SharedPtr waypoint_timer;
 
