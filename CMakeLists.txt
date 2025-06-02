@@ -20,6 +20,7 @@ find_package(rclpy REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -54,6 +55,9 @@ ament_target_dependencies(restamper_node std_msgs rclcpp sensor_msgs geometry_ms
 add_executable(guild_navigator_node src/guild_navigator.cpp)
 ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs)
 
+add_executable(master_control_node src/master_control.cpp)
+ament_target_dependencies(master_control_node rclcpp std_msgs lifecycle_msgs sensor_msgs)
+
 #ament_python_install_package(${PROJECT_NAME})
 
 #install(PROGRAMS
@@ -69,6 +73,7 @@ install(TARGETS
   formation_asmc_node
   restamper_node
   guild_navigator_node
+  master_control_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
