@@ -170,7 +170,7 @@ class GuildNavigator : public rclcpp::Node{
       std::pow(current_odometry.pose.pose.position.y - current_target.pose.position.y, 2)
     );
 
-    if (norm2 < 0.2) {
+    if (norm2 < 0.075) {
       RCLCPP_INFO(this->get_logger(), "Reached waypoint %d at (%f, %f)", 
                   current_waypoint, current_target.pose.position.x, current_target.pose.position.y);
       current_waypoint++;
