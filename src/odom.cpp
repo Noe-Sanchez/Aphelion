@@ -57,7 +57,7 @@ class PuzzlebotOdom : public rclcpp::Node{
       this->declare_parameter("sim_time", false);
       this->get_parameter("sim_time", sim_time);
 
-      global_poses = YAML::LoadFile(ament_index_cpp::get_package_share_directory("aphelion") + "/config/marker_poses.yaml");
+      global_poses = YAML::LoadFile(ament_index_cpp::get_package_share_directory("aphelion") + "/config/adjusted_marker_poses.yaml");
       odom_msg.twist.covariance = {0};
 
       for(const auto& node : global_poses) {
