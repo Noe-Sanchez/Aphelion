@@ -53,7 +53,7 @@ ament_target_dependencies(odom_node rclcpp std_msgs geometry_msgs tf2_ros nav_ms
 add_executable(restamper_node src/restamper.cpp)
 ament_target_dependencies(restamper_node std_msgs rclcpp sensor_msgs geometry_msgs tf2_ros nav_msgs) 
 
-add_executable(guild_navigator_node src/guild_navigator.cpp)
+add_executable(guild_navigator_node src/guild_navigator2.cpp)
 ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs)
 
 add_executable(master_control_node src/master_control.cpp)
