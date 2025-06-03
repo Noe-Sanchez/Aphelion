@@ -1,0 +1,129 @@
+<robot name="puzzlebot">
+
+  <link name="base_footprint">
+  </link>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <!-- mesh filename="package://aphelion/meshes/MCR2_puzzlebot_base_mod.stl"/ -->
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_lidar_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+      <!-- origin rpy="1.57 0 3.14" xyz="0 0 0.0795" / -->
+    </visual>
+  </link>
+<!-- LIDAR link -->
+<link name="laser_link"/>
+<link name="camera_link"/>
+
+<!-- LIDAR fixed joint onto base_link -->
+<joint name="laser_joint" type="fixed">
+  <parent link="base_link"/>
+  <child  link="laser_link"/>
+  <!-- Ajusta xyz/RPY a la posición real -->
+  <origin xyz="0.0 0.0 0.1" rpy="0 0 -3.14"/>
+</joint>
+
+<joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="camera_link"/>
+    <!-- Ajusta estos valores a la posición real de tu A1 -->
+    <origin xyz="0.1 0.0 0.0375" rpy="-1.57 0 3.14"/>
+  </joint>
+
+  <link name="wheel_r_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="wheel_l_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="caster_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_caster_wheel_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- link name="lidar_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="lidar_base_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://aphelion/meshes/MCR2_puzzlebot_jetson_lidar_base_mod.stl"/>
+      </geometry>
+      <material name="mat">
+      <color rgba="0.3 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link -->
+
+  <joint name="base_link_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint>
+
+  <!-- joint name="base_lidar_base_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_base_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="base_lidar_joint" type="fixed">
+    <parent link="lidar_base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.0675" rpy="0 0 0"/>
+  </joint -->
+
+  <joint name="wheel_r_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="wheel_r_link"/>
+    <!-- origin xyz="2.052 -0.095 -0.0025" rpy="0 0 0"/ -->
+    <origin xyz="0.0230 -0.09 -0.0215" rpy="1.57 0 0"/>
+  </joint>
+
+  <joint name="wheel_l_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="wheel_l_link"/>
+    <origin xyz="0.0230 0.09 -0.0215" rpy="-1.57 0 0"/>
+  </joint>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="caster_link"/>
+    <origin xyz="-0.11 0.0 -0.0575" rpy="0 0 0"/>
+  </joint>
+
+</robot>
