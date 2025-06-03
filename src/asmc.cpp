@@ -25,40 +25,18 @@
 #include <eigen3/Eigen/QR>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include "lifecycle_msgs/msg/transition.hpp"
+#include "rclcpp/publisher.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "rclcpp_lifecycle/lifecycle_publisher.hpp"
+
 using namespace std::chrono_literals;
 
-class PuzzlebotAsmc : public rclcpp::Node{
+//class PuzzlebotAsmc : public rclcpp::Node{
+class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{ 
   public:
-    PuzzlebotAsmc(): Node("puzzlebot_asmc_node"){
-      // Get puzzlebot id from launchfile parameter
-      this->declare_parameter("puzzlebot_id", 0);
-      this->get_parameter("puzzlebot_id", puzzlebot_id);
-
-      this->declare_parameter("use_prefix", false);
-      this->get_parameter("use_prefix", use_prefix);
-
-      // Subscribers
-      //estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/estimator/pose/", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-      //desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose/", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-      if (use_prefix){
-	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/model/puzzlebot_" + std::to_string(puzzlebot_id) + "/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/cmd_vel", 10);
-      } else {
-	//estimator_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	//estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
-	desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	//desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PointStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
-	wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/puzzlebot_0/cmd_vel", 10);
-      }
-      // Make 0.5s timer
-      control_timer             = this->create_wall_timer(100ms, std::bind(&PuzzlebotAsmc::control_callback, this));
-      // Initialize transform listener
-      tf_buffer_   = std::make_unique<tf2_ros::Buffer>(this->get_clock());
-      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    //PuzzlebotAsmc(): Node("puzzlebot_asmc_node"){
+    PuzzlebotAsmc(): rclcpp_lifecycle::LifecycleNode("puzzlebot_asmc_node"){ 
 
       // Initialize variables 
       e << 0.0, 0.0;
@@ -81,7 +59,53 @@ class PuzzlebotAsmc : public rclcpp::Node{
       x_d_dot << 0.0, 0.0, 0.0;
 
       uaux << 0.0, 0.0;
+    
+    }
 
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(const rclcpp_lifecycle::State & state) {
+      RCLCPP_INFO(this->get_logger(), "Configuring Puzzlebot ASMC Node");
+
+      estimator_pose_subscriber = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&PuzzlebotAsmc::estimator_pose_callback, this, std::placeholders::_1));
+      desired_pose_subscriber   = this->create_subscription<geometry_msgs::msg::PoseStamped>("/desired_pose", 10, std::bind(&PuzzlebotAsmc::desired_pose_callback, this, std::placeholders::_1));
+      wheel_vel_publisher       = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+      
+      tf_buffer_   = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_activate(const rclcpp_lifecycle::State & state) {
+      RCLCPP_INFO(this->get_logger(), "Activating Puzzlebot ASMC Node");
+      
+      // Start the timer
+      // Activate publisher
+      wheel_vel_publisher->on_activate();
+      control_timer             = this->create_wall_timer(100ms, std::bind(&PuzzlebotAsmc::control_callback, this));
+
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) {
+      RCLCPP_INFO(this->get_logger(), "Deactivating Puzzlebot ASMC Node");
+      
+      // Stop the timer
+      // Deactivate publisher
+      wheel_vel_publisher->on_deactivate();
+      control_timer->cancel();
+      
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    }
+
+    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) {
+      RCLCPP_INFO(this->get_logger(), "Cleaning up Puzzlebot ASMC Node");
+      
+      // Unsubscribe from topics
+      estimator_pose_subscriber.reset();
+      desired_pose_subscriber.reset();
+      wheel_vel_publisher.reset();
+      
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
     //void estimator_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
@@ -153,12 +177,6 @@ class PuzzlebotAsmc : public rclcpp::Node{
       sigma = A.colPivHouseholderQr().solve(uaux);
 
       // Saturate sigma
-      //sigma(0) = std::max(-3.0, std::min(3.0, sigma(0)));
-      //sigma(1) = std::max(-3.0, std::min(3.0, sigma(1)));
-      //sigma(0) = std::max(-2.0, std::min(2.0, sigma(0)));
-      //sigma(1) = std::max(-2.0, std::min(2.0, sigma(1)));
-      //sigma(0) = std::max(-0.5, std::min(0.5, sigma(0)));
-      //sigma(1) = std::max(-0.5, std::min(0.5, sigma(1)));
       sigma(0) = std::max(-0.15, std::min(0.15, sigma(0)));
       sigma(1) = std::max(-0.15, std::min(0.15, sigma(1)));
 
@@ -191,26 +209,31 @@ class PuzzlebotAsmc : public rclcpp::Node{
     float d;
     float kp;
     float kd;
-    bool use_prefix;
 
     rclcpp::TimerBase::SharedPtr control_timer; 
-    //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr estimator_pose_subscriber;
+    //rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_vel_publisher;
+    
+    rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::Twist>::SharedPtr wheel_vel_publisher;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr estimator_pose_subscriber;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr desired_pose_subscriber;
-    //rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr desired_pose_subscriber;
-
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_vel_publisher;
 
     // Transform listener for map frame
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
-    int puzzlebot_id;
 };
 
 int main(int argc, char * argv[]){
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<PuzzlebotAsmc>());
+
+  rclcpp::executors::SingleThreadedExecutor executor;
+
+  std::shared_ptr<PuzzlebotAsmc> puzzlebot_asmc_node = std::make_shared<PuzzlebotAsmc>();
+  executor.add_node(puzzlebot_asmc_node->get_node_base_interface());
+  executor.spin();
+
   rclcpp::shutdown();
+  //rclcpp::spin(std::make_shared<PuzzlebotAsmc>());
+
   return 0;
 }

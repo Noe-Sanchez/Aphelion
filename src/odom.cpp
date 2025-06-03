@@ -30,6 +30,18 @@
 
 #include "rclcpp/qos.hpp"
 
+double fsign(double x) {
+  if (x > 0) {
+    return 1.0;
+  } else if (x < 0) {
+    return -1.0;
+  } else {
+    return 0.0;
+  }
+}
+
+
+
 using namespace std::chrono_literals;
 
 class PuzzlebotOdom : public rclcpp::Node{
@@ -97,7 +109,8 @@ class PuzzlebotOdom : public rclcpp::Node{
       //l = 0.19; // Wheel distance
       l = 0.168; // Wheel distance
 
-      x_hat          << 0.284, 0.296, 1.57; // Initial state
+      //x_hat          << 0.284, 0.296, 1.57; // Initial state
+      x_hat          << 0, 0, 0; // Initial state
       //x_hat          << 0.284, 0.296, 0; // Initial state
       x_hat_dot      << 0.0, 0.0, 0.0;
       x_hat_dot_prev << 0.0, 0.0, 0.0;
@@ -139,8 +152,12 @@ class PuzzlebotOdom : public rclcpp::Node{
       x_hat_dot(1) = helper(1);
       x_hat_dot(2) = r * ((u(1) - u(0)) / l); 
 
-      F << 1, 0, -sin(x_hat(2)) * (u(0) + u(1)) * r / 2 * 0.01,
-           0, 1, cos(x_hat(2)) * (u(0) + u(1)) * r / 2 * 0.01,
+      //F << 1, 0, -sin(x_hat(2)) * (u(0) + u(1)) * r / 2 * 0.01,
+      //     0, 1,  cos(x_hat(2)) * (u(0) + u(1)) * r / 2 * 0.01,
+      //     0, 0, 1;
+      //
+      F << 1, 0, -sin(x_hat(2)) * (u(0) + u(1)) * r / 2 * dt, 
+           0, 1,  cos(x_hat(2)) * (u(0) + u(1)) * r / 2 * dt,
            0, 0, 1;
       
       if(!sim_time || (integrate && !integrated)){
@@ -150,8 +167,13 @@ class PuzzlebotOdom : public rclcpp::Node{
         x_hat += dt * 0.5 * (x_hat_dot + x_hat_dot_prev);
         x_hat_dot_prev = x_hat_dot;
 
-        // Wrap yaw
-        x_hat(2) = fmod(x_hat(2) + M_PI, 2*M_PI) - M_PI;
+        // Wrap yaw angle
+        //x_hat(2) = fmod(x_hat(2) + M_PI, 2*M_PI) - M_PI;
+	if (x_hat(2) < -M_PI) {
+	  x_hat(2) += 2 * M_PI;
+	} else if (x_hat(2) > M_PI) {
+	  x_hat(2) -= 2 * M_PI;
+	}
 
         integrated = true;
 
@@ -166,6 +188,8 @@ class PuzzlebotOdom : public rclcpp::Node{
         estimator_pose_msg.pose.position.x = x_hat(0);
         estimator_pose_msg.pose.position.y = x_hat(1);
 
+
+	std::cout << "x_hat normal: " << x_hat.transpose() << std::endl;
         Eigen::Quaterniond q(Eigen::AngleAxisd(x_hat(2), Eigen::Vector3d::UnitZ()));
         estimator_pose_msg.pose.orientation.x = q.x();
         estimator_pose_msg.pose.orientation.y = q.y();
@@ -222,10 +246,15 @@ class PuzzlebotOdom : public rclcpp::Node{
         aruco_pose = markers.poses.at(i);
         if(world_poses.find(aruco_id) != world_poses.end()) {
           valid = true;
+
+	  if ( world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
+	    world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
+	  }
+
           z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-                  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
-                  cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
-                  sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
+                   cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
+                   cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
+                   sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
           
           geometry_msgs::msg::PoseStamped rviz_pose;
           rviz_pose.header.stamp = this->now();
@@ -234,20 +263,29 @@ class PuzzlebotOdom : public rclcpp::Node{
           rviz_pose.pose.position.y = x_hat(1) + sin(x_hat(2)) * aruco_pose.position.z - cos(x_hat(2)) * aruco_pose.position.x;
           pose_pub->publish(rviz_pose);
 
-          H << -sin(x_hat(2)), cos(x_hat(2)), cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-              -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-              0, 0, sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
-              0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
+          H << -sin(x_hat(2)),  cos(x_hat(2)),  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+               -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+                0, 0,  sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
+                0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
           
-          y_hat << aruco_pose.position.x - z_hat(0),
-                  aruco_pose.position.z - z_hat(1),
-                  aruco_pose.orientation.x - z_hat(2),
-                  aruco_pose.orientation.z - z_hat(3);
+          y_hat << aruco_pose.position.x    - z_hat(0),
+                   aruco_pose.position.z    - z_hat(1),
+                   aruco_pose.orientation.x - z_hat(2),
+                   aruco_pose.orientation.z - z_hat(3);
           
           S = H * P * H.transpose() + R;
           K = P * H.transpose() * S.inverse();
 
           x_hat += K * y_hat;
+
+
+	  if (x_hat(2) < -M_PI) {
+	    x_hat(2) += 2 * M_PI;
+	  } else if (x_hat(2) > M_PI) {
+	    x_hat(2) -= 2 * M_PI;
+	  }
+
+	  std::cout << "x_hat vision: " << x_hat.transpose() << std::endl;
           P = (Eigen::Matrix3d::Identity(3, 3) - K * H) * P;
         }
       }

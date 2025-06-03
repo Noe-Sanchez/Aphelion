@@ -14,8 +14,8 @@ slam_toolbox:
     map_frame: map
     base_frame: base_footprint
     scan_topic: /scan2
-    #use_map_saver: true
-    use_map_saver: false
+    use_map_saver: true
+    #use_map_saver: false
     mode: mapping #localization
     #mode: localization
 
