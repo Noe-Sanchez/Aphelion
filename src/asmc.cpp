@@ -47,7 +47,8 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       sigma_prev << 0.0, 0.0;
       
       r = 0.1; // Wheel radius
-      l = 0.5; // Wheel distance
+      //l = 0.5; // Wheel distance
+      l = 0.168; // Wheel distance
       d = 0.1; // COM location
       kp = 0.15; // Proportional gain
       //kd = 0.5; // Derivative gain
@@ -120,23 +121,11 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       //x << msg->pose.pose.position.x,
       //	   msg->pose.pose.position.y,
       //	   yaw;
-      
-      // Get map to odom transform
-      geometry_msgs::msg::TransformStamped transform;
-      geometry_msgs::msg::Quaternion q_transform;
-      
-      try {
-	transform = tf_buffer_->lookupTransform("map", "odom", rclcpp::Time(0), rclcpp::Duration(1, 0));
-      } catch (tf2::TransformException &ex) {
-	RCLCPP_WARN(this->get_logger(), "Could not get transform: %s", ex.what());
-	return;
-      }
 
       // Apply transform to the odometry data
-      x(0) = msg->pose.pose.position.x + transform.transform.translation.x;
-      x(1) = msg->pose.pose.position.y + transform.transform.translation.y;
-      q_transform = transform.transform.rotation;
-      x(2) = yaw + tf2::getYaw(q_transform);
+      x(0) = msg->pose.pose.position.x; 
+      x(1) = msg->pose.pose.position.y;
+      x(2) = yaw; 
 
 
     }
@@ -177,14 +166,14 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       sigma = A.colPivHouseholderQr().solve(uaux);
 
       // Saturate sigma
-      sigma(0) = std::max(-0.15, std::min(0.15, sigma(0)));
-      sigma(1) = std::max(-0.15, std::min(0.15, sigma(1)));
+      sigma(0) = std::max(-0.05, std::min(0.05, sigma(0)));
+      sigma(1) = std::max(-0.05, std::min(0.05, sigma(1)));
 
       // Publish sigma (wheel velocities)
       //cmd_vel.angular.x = sigma(0);
       //cmd_vel.angular.y = sigma(1);
-      cmd_vel.linear.x  = (sigma(0) + sigma(1)) / 2.0;
-      cmd_vel.angular.z = (sigma(1) - sigma(0)) / l;
+      cmd_vel.linear.x  = 1.25*(sigma(0) + sigma(1)) / 2.0;
+      cmd_vel.angular.z = 0.125*(sigma(1) - sigma(0)) / l;
       
       // Publish cmd_vel
       wheel_vel_publisher->publish(cmd_vel);

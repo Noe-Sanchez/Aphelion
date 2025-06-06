@@ -237,59 +237,61 @@ class PuzzlebotOdom : public rclcpp::Node{
     }
 
     void vision_callback(const aruco_interfaces::msg::ArucoMarkers &markers) {
-      size_t i;
+      RCLCPP_INFO(get_logger(), "Running callback");
+      size_t i, index;
+      int aruco_id = 999;
       geometry_msgs::msg::Pose aruco_pose;
-      int aruco_id;
       bool valid = false;
       for(i = 0; i < markers.marker_ids.size(); i++) {
-        aruco_id = markers.marker_ids.at(i);
-        aruco_pose = markers.poses.at(i);
-        if(world_poses.find(aruco_id) != world_poses.end()) {
+        if(world_poses.find(markers.marker_ids.at(i)) != world_poses.end()) {
           valid = true;
-
-	  if ( world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
-	    world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
-	  }
-
-          z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-                   cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
-                   cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
-                   sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
-          
-          geometry_msgs::msg::PoseStamped rviz_pose;
-          rviz_pose.header.stamp = this->now();
-          rviz_pose.header.frame_id = "odom";
-          rviz_pose.pose.position.x = x_hat(0) + cos(x_hat(2)) * aruco_pose.position.z + sin(x_hat(2)) * aruco_pose.position.x;
-          rviz_pose.pose.position.y = x_hat(1) + sin(x_hat(2)) * aruco_pose.position.z - cos(x_hat(2)) * aruco_pose.position.x;
-          pose_pub->publish(rviz_pose);
-
-          H << -sin(x_hat(2)),  cos(x_hat(2)),  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-               -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-                0, 0,  sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
-                0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
-          
-          y_hat << aruco_pose.position.x    - z_hat(0),
-                   aruco_pose.position.z    - z_hat(1),
-                   aruco_pose.orientation.x - z_hat(2),
-                   aruco_pose.orientation.z - z_hat(3);
-          
-          S = H * P * H.transpose() + R;
-          K = P * H.transpose() * S.inverse();
-
-          x_hat += K * y_hat;
-
-
-	  if (x_hat(2) < -M_PI) {
-	    x_hat(2) += 2 * M_PI;
-	  } else if (x_hat(2) > M_PI) {
-	    x_hat(2) -= 2 * M_PI;
-	  }
-
-	  std::cout << "x_hat vision: " << x_hat.transpose() << std::endl;
-          P = (Eigen::Matrix3d::Identity(3, 3) - K * H) * P;
+          index = markers.marker_ids.at(i) < aruco_id ? i : index;
+          aruco_id = markers.marker_ids.at(index);
         }
       }
       if(valid) {
+        aruco_pose = markers.poses.at(index);
+
+        if (world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
+          world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
+        }
+        
+        z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+                  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
+                  cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
+                  sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
+        
+        geometry_msgs::msg::PoseStamped rviz_pose;
+        rviz_pose.header.stamp = this->now();
+        rviz_pose.header.frame_id = "odom";
+        rviz_pose.pose.position.x = x_hat(0) + cos(x_hat(2)) * aruco_pose.position.z + sin(x_hat(2)) * aruco_pose.position.x;
+        rviz_pose.pose.position.y = x_hat(1) + sin(x_hat(2)) * aruco_pose.position.z - cos(x_hat(2)) * aruco_pose.position.x;
+        pose_pub->publish(rviz_pose);
+
+        H << -sin(x_hat(2)),  cos(x_hat(2)),  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+              -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+              0, 0,  sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
+              0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
+        
+        y_hat << aruco_pose.position.x    - z_hat(0),
+                  aruco_pose.position.z    - z_hat(1),
+                  aruco_pose.orientation.x - z_hat(2),
+                  aruco_pose.orientation.z - z_hat(3);
+        
+        S = H * P * H.transpose() + R;
+        K = P * H.transpose() * S.inverse();
+
+        x_hat += K * y_hat;
+
+
+        if (x_hat(2) < -M_PI) {
+          x_hat(2) += 2 * M_PI;
+        } else if (x_hat(2) > M_PI) {
+          x_hat(2) -= 2 * M_PI;
+        }
+
+        std::cout << "x_hat vision: " << x_hat.transpose() << std::endl;
+        P = (Eigen::Matrix3d::Identity(3, 3) - K * H) * P;
         estimator_pose_msg.pose.position.x = x_hat(0);
         estimator_pose_msg.pose.position.y = x_hat(1);
 
