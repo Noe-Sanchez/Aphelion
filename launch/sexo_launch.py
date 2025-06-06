@@ -72,6 +72,21 @@ def generate_launch_description():
                               output='screen',
                               arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
                              )
+
+    image_node = Node(
+                  package='aruco_loc',
+                  executable='image_generator_node',
+                  name='image_gen_node',
+                  output='screen',
+                  parameters=[{"capture_width": 640,
+                               "capture_height": 480,
+                               "display_width": 640,
+                               "display_height": 480,
+                               "framerate": 30,
+                               "flip_method": 0,
+                               "camera_info_url": "file:///home/puzzlebot/camera_info/ost.yaml"
+                               }]
+                  )
     
     odom_node = Node(package='aphelion',
                               executable='odom_node',
@@ -89,6 +104,8 @@ def generate_launch_description():
 
     #l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
     #l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
-    l_d = LaunchDescription([robot_state_pub_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
+    # l_d = LaunchDescription([robot_state_pub_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
+    l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
+    #l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node])
 
     return l_d
