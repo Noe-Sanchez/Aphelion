@@ -108,7 +108,7 @@ class GuildNavigator : public rclcpp::Node{
   }
 
   // Check if position is too close to walls (safety margin)
-  bool isSafe(int x, int y, int safety_radius = 2) {
+  bool isSafe(int x, int y, int safety_radius = 3) {
     for (int dx = -safety_radius; dx <= safety_radius; ++dx) {
       for (int dy = -safety_radius; dy <= safety_radius; ++dy) {
         int check_x = x + dx;
