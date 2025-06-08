@@ -57,7 +57,11 @@ class PuzzlebotOdom : public rclcpp::Node{
       this->declare_parameter("sim_time", false);
       this->get_parameter("sim_time", sim_time);
 
-      global_poses = YAML::LoadFile(ament_index_cpp::get_package_share_directory("aphelion") + "/config/adjusted_marker_poses.yaml");
+      this->declare_parameter("markers_yaml_file", ament_index_cpp::get_package_share_directory("aphelion") + "/config/adjusted_marker_poses.yaml");
+      this->get_parameter("markers_yaml_file", markers_yaml_file);
+
+      // global_poses = YAML::LoadFile(ament_index_cpp::get_package_share_directory("aphelion") + "/config/adjusted_marker_poses.yaml");
+      global_poses = YAML::LoadFile(markers_yaml_file);
       odom_msg.twist.covariance = {0};
 
       for(const auto& node : global_poses) {
@@ -123,10 +127,14 @@ class PuzzlebotOdom : public rclcpp::Node{
            0, 0.0005, 0,
            0, 0, 0.0005;
       
-      R << 0.05, 0, 0, 0,
-           0, 0.05, 0, 0,
-           0, 0, 0.1, 0,
-           0, 0, 0, 0.1;
+      // R << 0.05, 0, 0, 0,
+      //      0, 0.05, 0, 0,
+      //      0, 0, 0.1, 0,
+      //      0, 0, 0, 0.1;
+
+      R << 0.05, 0, 0,
+           0, 0.05, 0,
+           0, 0, 0.1;
       
       integrate = false;
       integrated = true;
@@ -169,11 +177,11 @@ class PuzzlebotOdom : public rclcpp::Node{
 
         // Wrap yaw angle
         //x_hat(2) = fmod(x_hat(2) + M_PI, 2*M_PI) - M_PI;
-	if (x_hat(2) < -M_PI) {
-	  x_hat(2) += 2 * M_PI;
-	} else if (x_hat(2) > M_PI) {
-	  x_hat(2) -= 2 * M_PI;
-	}
+        if (x_hat(2) < -M_PI) {
+          x_hat(2) += 2 * M_PI;
+        } else if (x_hat(2) > M_PI) {
+          x_hat(2) -= 2 * M_PI;
+        }
 
         integrated = true;
 
@@ -189,7 +197,7 @@ class PuzzlebotOdom : public rclcpp::Node{
         estimator_pose_msg.pose.position.y = x_hat(1);
 
 
-	std::cout << "x_hat normal: " << x_hat.transpose() << std::endl;
+	      std::cout << "x_hat normal: " << x_hat.transpose() << std::endl;
         Eigen::Quaterniond q(Eigen::AngleAxisd(x_hat(2), Eigen::Vector3d::UnitZ()));
         estimator_pose_msg.pose.orientation.x = q.x();
         estimator_pose_msg.pose.orientation.y = q.y();
@@ -255,11 +263,20 @@ class PuzzlebotOdom : public rclcpp::Node{
         if (world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
           world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
         }
+
+        tf2::Quaternion qp(aruco_pose.orientation.x, aruco_pose.orientation.y, aruco_pose.orientation.z, aruco_pose.orientation.w);
+        tf2::Matrix3x3 m(qp);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
         
+        // z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+        //           cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
+        //           cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
+        //           sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
+
         z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
                   cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
-                  cos((world_poses[aruco_id][2] - x_hat(2)) / 2),
-                  sin((world_poses[aruco_id][2] - x_hat(2)) / 2);
+                  world_poses[aruco_id][2] - x_hat(2);
         
         geometry_msgs::msg::PoseStamped rviz_pose;
         rviz_pose.header.stamp = this->now();
@@ -268,15 +285,23 @@ class PuzzlebotOdom : public rclcpp::Node{
         rviz_pose.pose.position.y = x_hat(1) + sin(x_hat(2)) * aruco_pose.position.z - cos(x_hat(2)) * aruco_pose.position.x;
         pose_pub->publish(rviz_pose);
 
+        // H << -sin(x_hat(2)),  cos(x_hat(2)),  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+        //       -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
+        //       0, 0,  sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
+        //       0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
+        
         H << -sin(x_hat(2)),  cos(x_hat(2)),  cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
               -cos(x_hat(2)), -sin(x_hat(2)), -sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
-              0, 0,  sin((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2,
-              0, 0, -cos((world_poses[aruco_id][2] - x_hat(2)) / 2) / 2;
+              0, 0,  -1;
+        
+        // y_hat << aruco_pose.position.x    - z_hat(0),
+        //           aruco_pose.position.z    - z_hat(1),
+        //           aruco_pose.orientation.x - z_hat(2),
+        //           aruco_pose.orientation.z - z_hat(3);
         
         y_hat << aruco_pose.position.x    - z_hat(0),
                   aruco_pose.position.z    - z_hat(1),
-                  aruco_pose.orientation.x - z_hat(2),
-                  aruco_pose.orientation.z - z_hat(3);
+                  fmod(-pitch - z_hat(2) + M_PI, 2 * M_PI) - M_PI;
         
         S = H * P * H.transpose() + R;
         K = P * H.transpose() * S.inverse();
@@ -375,11 +400,15 @@ class PuzzlebotOdom : public rclcpp::Node{
 
     Eigen::Matrix2d A;
     Eigen::Matrix3d P, F, Q;
-    Eigen::Matrix<double, 4, 3> H;
-    Eigen::Matrix<double, 3, 4> K;
-    Eigen::Matrix4d R, S;
+    // Eigen::Matrix<double, 4, 3> H;
+    Eigen::Matrix<double, 3, 3> H;
+    // Eigen::Matrix<double, 3, 4> K;
+    Eigen::Matrix<double, 3, 3> K;
+    // Eigen::Matrix4d R, S;
+    Eigen::Matrix3d R, S;
     Eigen::Vector2d u;
-    Eigen::Vector4d z_hat, y_hat;
+    // Eigen::Vector4d z_hat, y_hat;
+    Eigen::Vector3d z_hat, y_hat;
     Eigen::Vector3d x_hat;
     Eigen::Vector3d x_hat_dot;
     Eigen::Vector3d x_hat_dot_prev;
@@ -390,6 +419,7 @@ class PuzzlebotOdom : public rclcpp::Node{
     int puzzlebot_id;
 
     uint32_t time, prev_time;
+    std::string markers_yaml_file; 
 
     rclcpp::TimerBase::SharedPtr control_timer;
 
