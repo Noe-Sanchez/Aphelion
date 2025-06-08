@@ -92,7 +92,8 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       // Start the timer
       // Activate publisher
       wheel_vel_publisher->on_activate();
-      control_timer             = this->create_wall_timer(100ms, std::bind(&PuzzlebotAsmc::control_callback, this));
+      //control_timer             = this->create_wall_timer(100ms, std::bind(&PuzzlebotAsmc::control_callback, this));
+      control_timer             = this->create_wall_timer(10ms, std::bind(&PuzzlebotAsmc::control_callback, this));
 
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
@@ -188,6 +189,9 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
 
       float angular_error  = theta_d - theta; // Reference angle error
       float angular_error2 = theta_d2 - theta; // Straight line error
+
+      angular_error  = atan2(sin(angular_error),  cos(angular_error));
+      angular_error2 = atan2(sin(angular_error2), cos(angular_error2));
       
       float angle_controlling;
       
@@ -206,12 +210,13 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       if ( abs(angle_controlling) < 0.05 ){
 	RCLCPP_INFO(this->get_logger(), "Linear control, since reached ang");
 	cmd_vel.linear.x  = uaux(0);
+      	cmd_vel.angular.z = 0; 
       } else{
 	cmd_vel.linear.x  = 0; 
+      	cmd_vel.angular.z = kp_a * fsign(angle_controlling);
 	RCLCPP_INFO(this->get_logger(), "No linear control, since havent reached ang");
       }
 
-      cmd_vel.angular.z = kp_a * fsign(angle_controlling);
       
 
 
