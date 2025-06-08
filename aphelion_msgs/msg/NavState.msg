@@ -1,0 +1,8 @@
+uint8 STATE_STOP         = 0
+uint8 STATE_ASTAR        = 1
+uint8 STATE_PALLET_ALIGN = 2
+uint8 STATE_PALLET_PLACE = 3
+uint8 STATE_TRUCK_ALIGN  = 4
+uint8 STATE_TRUCK_PLACE  = 5
+
+uint8 state

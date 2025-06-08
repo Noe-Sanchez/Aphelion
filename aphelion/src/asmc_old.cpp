@@ -166,53 +166,65 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
     }
 
     void control_callback(){
+      // Define A matrix
+      A << (r/2)*cos(x(2))+(d*r/(2*l))*sin(x(2)), (r/2)*cos(x(2))-(d*r/(2*l))*sin(x(2)),
+           (r/2)*sin(x(2))-(d*r/(2*l))*cos(x(2)), (r/2)*sin(x(2))+(d*r/(2*l))*cos(x(2));
+
       // Compute error
       e << x_d(0) - x(0),
 	   x_d(1) - x(1);
+	   
+      e_dot = (e - e_prev) / 0.01; 
+      // If e_dot results in NaN because of zero division
+      if (std::isnan(e_dot(0)) || std::isnan(e_dot(1))){
+	e_dot << 0.0, 0.0;
+      }  
+				   
+      e_prev = e;
+
+      //std::cout << "e: " << e.transpose() << std::endl;
+      //std::cout << "yaw: " << x(2) << std::endl;
+
+      // Compute control input
+      uaux = kp * e + kd * e_dot;
+      //uaux(0) = kp * fsign(e(0));
+      //uaux(1) = kp * fsign(e(1)); 
+
 
       // Compute angular error
-      float theta    = x(2); 
-      float theta_d  = x_d(2);
-      float theta_d2 = atan2(e(1), e(0));
+      float theta = x(2); 
+      float theta_d = x_d(2);
 
-      float efeo = sqrt(e(0)*e(0) + e(1)*e(1));
-      
-      //uaux(0) = kp * efeo;
-      if( efeo > 0.025 ){ 
-	RCLCPP_INFO(this->get_logger(), "Linear control cause efeo is big");
-	uaux(0) = kp * fsign(efeo);
-      }else{
-	RCLCPP_INFO(this->get_logger(), "No linear control cause efeo is smol");
-	uaux(0) = 0;
-      }
-
-      float angular_error  = theta_d - theta; // Reference angle error
-      float angular_error2 = theta_d2 - theta; // Straight line error
-      
-      float angle_controlling;
-      
-      if ( do_angular_control && ( efeo < 0.025 )){
-	RCLCPP_INFO(this->get_logger(), "Controlling ref angle");
-	angle_controlling = angular_error;
-      } else {
-	angle_controlling = angular_error2;
-	RCLCPP_INFO(this->get_logger(), "Controlling line angle");
-      }
+      float angular_error = theta_d - theta;
      
-      //cmd_vel.linear.x  = uaux(0);
-      //cmd_vel.angular.z = kp_a * angular_error2;
-      //cmd_vel.angular.z = kp_a * fsign(angular_error2);
-  
-      if ( abs(angle_controlling) < 0.05 ){
-	RCLCPP_INFO(this->get_logger(), "Linear control, since reached ang");
-	cmd_vel.linear.x  = uaux(0);
-      } else{
-	cmd_vel.linear.x  = 0; 
-	RCLCPP_INFO(this->get_logger(), "No linear control, since havent reached ang");
-      }
+      if ( do_angular_control ){
+        if ( abs(sqrt(e(0)*e(0) + e(1)*e(1))) > 0.025 ){ 
+          sigma = A.colPivHouseholderQr().solve(uaux);
 
-      cmd_vel.angular.z = kp_a * fsign(angle_controlling);
-      
+          //sigma(0) = std::max(-0.075, std::min(0.075, sigma(0)));
+          //sigma(1) = std::max(-0.075, std::min(0.075, sigma(1)));
+
+          cmd_vel.linear.x  = 1.25*(sigma(0) + sigma(1)) / 2.0;
+          //cmd_vel.angular.z = 0.125*(sigma(1) - sigma(0)) / l;
+          cmd_vel.angular.z = kp_a*(sigma(1) - sigma(0)) / l;
+	  RCLCPP_INFO(this->get_logger(), "Mag error: %f", abs(sqrt(e(0)*e(0) + e(1)*e(1))));
+        } else {
+	  RCLCPP_INFO(this->get_logger(), "Angular error: %f", angular_error);
+          cmd_vel.linear.x  = 0;
+          //cmd_vel.angular.z = kp_a * angular_error; 
+          cmd_vel.angular.z = kp_a * fsign(angular_error); 
+        }
+      } else {
+	RCLCPP_INFO(this->get_logger(), "Ignoring angle, since do_realign == false");
+        sigma = A.colPivHouseholderQr().solve(uaux);
+
+        //sigma(0) = std::max(-0.075, std::min(0.075, sigma(0)));
+        //sigma(1) = std::max(-0.075, std::min(0.075, sigma(1)));
+
+        cmd_vel.linear.x  = 1.25*(sigma(0) + sigma(1)) / 2.0;
+        //cmd_vel.angular.z = 0.125*(sigma(1) - sigma(0)) / l;
+        cmd_vel.angular.z = kp_a*(sigma(1) - sigma(0)) / l;
+      }
 
 
       // Saturate sigma

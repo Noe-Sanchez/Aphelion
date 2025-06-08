@@ -86,7 +86,7 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/puzzlebot_lidar/meshes/chassis1.dae</uri>
+              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/puzzlebot_lidar/meshes/chassis1.dae</uri>
             </mesh>
           </geometry>
         </visual>
@@ -204,7 +204,7 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/puzzlebot_lidar/meshes/wheel.dae</uri>
+              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/puzzlebot_lidar/meshes/wheel.dae</uri>
             </mesh>
           </geometry>
         </visual>
@@ -246,7 +246,7 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/puzzlebot_lidar/meshes/wheel.dae</uri>
+              <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/puzzlebot_lidar/meshes/wheel.dae</uri>
             </mesh>
           </geometry>
         </visual>
@@ -384,12 +384,12 @@
       <self_collide>false</self_collide>
     </model>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco13</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco13</uri>
       <name>Aruco13</name>
       <pose>0.55500000000000005 0.76100000000000001 0.055 0 0 3.1400000000000001</pose>
     </include>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco11</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco11</uri>
       <name>Aruco11</name>
       <pose>-1.1899999999999999 -0.074999999999999997 0.055 0 0 0</pose>
     </include>
@@ -817,29 +817,34 @@
       <self_collide>false</self_collide>
     </model>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco10</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco10</uri>
       <name>Aruco10</name>
       <pose>0.85679456401249643 -1.1892763806686828 0.055 0 0 1.57</pose>
     </include>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco8</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco8</uri>
       <name>Aruco8</name>
       <pose>0.91363888120453185 0.73996747879192393 0.055 0 0 -1.57</pose>
     </include>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco3</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco3</uri>
       <name>Aruco3</name>
       <pose>-0.96919292934399359 -1.1866535968574532 0.055 0 0 1.57</pose>
     </include>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco12</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco12</uri>
       <name>Aruco12</name>
       <pose>1.1829422062239214 -0.11577044718381779 0.055 0 0 3.14</pose>
     </include>
     <include>
-      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/models/Aruco2</uri>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/Aruco2</uri>
       <name>Aruco2</name>
       <pose>-0.16016609744464755 -1.1910165662134333 0.055 0 0 1.57</pose>
+    </include>
+    <include>
+      <uri>file:///root/octavo_ws/src/TE3003B/puzzlebot_sim/aphelion/models/P80_Pallet</uri>
+      <name>Pallet</name>
+      <pose>-0.2 -0.6 0.1 0 0 0</pose>
     </include>
     <light name='sun' type='directional'>
       <pose>0 0 10 0 0 0</pose>

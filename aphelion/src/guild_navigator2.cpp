@@ -22,6 +22,8 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 
+#include "aphelion_msgs/msg/pose_command.hpp"
+
 using namespace std::chrono_literals;
 
 // Node structure for A* algorithm
@@ -59,7 +61,8 @@ class GuildNavigator : public rclcpp::Node{
       visited_publisher   = this->create_publisher<visualization_msgs::msg::MarkerArray>("/astar/visited", 10);
       goal_subscriber     = this->create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 10, std::bind(&GuildNavigator::goal_callback, this, std::placeholders::_1));
 
-      target_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/desired_pose", 10);
+      //target_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/desired_pose", 10);
+      target_publisher = this->create_publisher<aphelion_msgs::msg::PoseCommand>("/desired_pose", 10);
       
       std::cout << "Init A* node" << std::flush;
       
@@ -145,6 +148,12 @@ class GuildNavigator : public rclcpp::Node{
     // Get current waypoint from optimal path
     if (current_waypoint >= optimal_path.size()) {
       RCLCPP_INFO(this->get_logger(), "Reached the last waypoint, stopping navigation");
+
+      // Publish last waypoint again, but realign
+      current_target.do_realign = true;
+      current_target.target_pose.pose.orientation = current_goal.pose.orientation;
+      target_publisher->publish(current_target);
+
       waypoint_timer->cancel();
       current_waypoint = 0;
       return;
@@ -153,7 +162,7 @@ class GuildNavigator : public rclcpp::Node{
     auto& waypoint = optimal_path[current_waypoint];
     
     // Convert grid coordinates back to world coordinates
-    current_target.pose.position.x = waypoint.first * current_map.info.resolution + 
+    /*current_target.pose.position.x = waypoint.first * current_map.info.resolution + 
                                      current_map.info.origin.position.x + 
                                      current_map.info.resolution / 2.0;
     current_target.pose.position.y = waypoint.second * current_map.info.resolution + 
@@ -162,21 +171,33 @@ class GuildNavigator : public rclcpp::Node{
     current_target.pose.position.z = 0.0;
     current_target.header.frame_id = "map";
     current_target.header.stamp = this->now();
+    target_publisher->publish(current_target);*/
+
+    current_target.target_pose.pose.position.x = waypoint.first * current_map.info.resolution + 
+                                                 current_map.info.origin.position.x + 
+                                                 current_map.info.resolution / 2.0;
+    current_target.target_pose.pose.position.y = waypoint.second * current_map.info.resolution + 
+                                                 current_map.info.origin.position.y + 
+                                                 current_map.info.resolution / 2.0;
+    current_target.target_pose.pose.position.z = 0.0;
+    current_target.target_pose.header.frame_id = "map";
+    current_target.target_pose.header.stamp = this->now();
+    current_target.do_realign = false;
     target_publisher->publish(current_target);
 
     // Compute distance to current waypoint
     double norm2 = std::sqrt(
-      std::pow(current_odometry.pose.pose.position.x - current_target.pose.position.x, 2) +
-      std::pow(current_odometry.pose.pose.position.y - current_target.pose.position.y, 2)
+      std::pow(current_odometry.pose.pose.position.x - current_target.target_pose.pose.position.x, 2) +
+      std::pow(current_odometry.pose.pose.position.y - current_target.target_pose.pose.position.y, 2)
     );
 
-    if (norm2 < 0.075) {
+    if (norm2 < 0.25) {
       RCLCPP_INFO(this->get_logger(), "Reached waypoint %d at (%f, %f)", 
-                  current_waypoint, current_target.pose.position.x, current_target.pose.position.y);
+                  current_waypoint, current_target.target_pose.pose.position.x, current_target.target_pose.pose.position.y);
       current_waypoint++;
     } else {
       RCLCPP_INFO(this->get_logger(), "Moving to waypoint %d at (%f, %f), distance: %f", 
-                  current_waypoint, current_target.pose.position.x, current_target.pose.position.y, norm2);
+                  current_waypoint, current_target.target_pose.pose.position.x, current_target.target_pose.pose.position.y, norm2);
     }
   }
 
@@ -358,14 +379,16 @@ class GuildNavigator : public rclcpp::Node{
     visualization_msgs::msg::MarkerArray visited_nodes;
     geometry_msgs::msg::PoseStamped current_goal;
     visualization_msgs::msg::Marker visited_marker;
-    geometry_msgs::msg::PoseStamped current_target;
+    //geometry_msgs::msg::PoseStamped current_target;
+    aphelion_msgs::msg::PoseCommand current_target;
 
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_subscriber;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscriber;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr path_publisher;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visited_publisher;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_subscriber;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_publisher;
+    //rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_publisher;
+    rclcpp::Publisher<aphelion_msgs::msg::PoseCommand>::SharedPtr target_publisher;
 
     rclcpp::TimerBase::SharedPtr waypoint_timer;
 };

@@ -30,6 +30,7 @@ find_package(slam_toolbox REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(aruco_interfaces REQUIRED)
+find_package(aphelion_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -42,7 +43,7 @@ add_executable(simple_kinematics_node src/simple_kinematics.cpp)
 ament_target_dependencies(simple_kinematics_node rclcpp std_msgs geometry_msgs tf2_ros)
 
 add_executable(asmc_node src/asmc.cpp)
-ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs tf2_geometry_msgs rclcpp_lifecycle lifecycle_msgs)
+ament_target_dependencies(asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs tf2_geometry_msgs rclcpp_lifecycle lifecycle_msgs aphelion_msgs)
 
 add_executable(formation_asmc_node src/formation_asmc.cpp)
 ament_target_dependencies(formation_asmc_node rclcpp std_msgs geometry_msgs tf2_ros nav_msgs )
@@ -54,10 +55,10 @@ add_executable(restamper_node src/restamper.cpp)
 ament_target_dependencies(restamper_node std_msgs rclcpp sensor_msgs geometry_msgs tf2_ros nav_msgs) 
 
 add_executable(guild_navigator_node src/guild_navigator2.cpp)
-ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs)
+ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs aphelion_msgs)
 
 add_executable(master_control_node src/master_control.cpp)
-ament_target_dependencies(master_control_node rclcpp std_msgs lifecycle_msgs sensor_msgs)
+ament_target_dependencies(master_control_node rclcpp std_msgs lifecycle_msgs sensor_msgs aphelion_msgs)
 
 #ament_python_install_package(${PROJECT_NAME})
 

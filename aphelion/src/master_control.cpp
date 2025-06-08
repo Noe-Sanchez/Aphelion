@@ -25,22 +25,41 @@ using namespace std::chrono_literals;
 enum navigationState{
     STANDBY,
     ASTAR,
-    PALLET_ALIGN,
-    PALLET_GRASP,
-    TRUCK_ALIGN,
-    TRUCK_GRASP,
+    BUG0,
     STOP
 };
+
+template<typename FutureT, typename WaitTimeT>
+std::future_status
+wait_for_result(
+  FutureT & future,
+  WaitTimeT time_to_wait)
+{
+  auto end = std::chrono::steady_clock::now() + time_to_wait;
+  std::chrono::milliseconds wait_period(100);
+  std::future_status status = std::future_status::timeout;
+  do {
+    auto now = std::chrono::steady_clock::now();
+    auto time_left = end - now;
+    if (time_left <= std::chrono::seconds(0)) {break;}
+    status = future.wait_for((time_left < wait_period) ? time_left : wait_period);
+  } while (rclcpp::ok() && status != std::future_status::ready);
+  return status;
+}
 
 class MasterControl : public rclcpp::Node{
   public:
     MasterControl(): Node("master_control") {
-      this->declare_parameter("asmc_node_name",  "asmc_node");
-      this->get_parameter(    "asmc_node_name",   asmc_node_name);
+      //this->declare_parameter("asmc_node_name", "puzzlebot_asmc_node");
+      this->declare_parameter("asmc_node_name", "asmc_node");
+      this->get_parameter("asmc_node_name", asmc_node_name);
+      //this->declare_parameter("bug0_node_name", "bug0_node");
+      this->declare_parameter("bug0_node_name", "bug_algorithm");
+      this->get_parameter("bug0_node_name", bug0_node_name);
       this->declare_parameter("astar_node_name", "guild_navigator_node");
-      this->get_parameter(    "astar_node_name",  astar_node_name);
-
-      curr_state = STOP; 
+      this->get_parameter("astar_node_name", astar_node_name);
+      //curr_state = STANDBY;      
+      curr_state = ASTAR; // Start with A* algorithm active
 
       //lidar_sub = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan2",  10, std::bind(&MasterControl::lidar_callback, this, std::placeholders::_1));
       min_dist_sub = this->create_subscription<std_msgs::msg::Float32>("/min_distance", 10, std::bind(&MasterControl::min_dist_callback, this, std::placeholders::_1));
