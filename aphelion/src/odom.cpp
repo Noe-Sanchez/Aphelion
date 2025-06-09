@@ -260,9 +260,9 @@ class PuzzlebotOdom : public rclcpp::Node{
       if(valid) {
         aruco_pose = markers.poses.at(index);
 
-        if (world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
-          world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
-        }
+        // if (world_poses[aruco_id][2] == 3.14 || world_poses[aruco_id][2] == -3.14 ) {
+        //   world_poses[aruco_id][2] = fsign(x_hat(2)) * 3.14;
+        // }
 
         tf2::Quaternion qp(aruco_pose.orientation.x, aruco_pose.orientation.y, aruco_pose.orientation.z, aruco_pose.orientation.w);
         tf2::Matrix3x3 m(qp);
@@ -277,6 +277,12 @@ class PuzzlebotOdom : public rclcpp::Node{
         z_hat << sin(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) - cos(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)),
                   cos(x_hat(2)) * (world_poses[aruco_id][0] - x_hat(0)) + sin(x_hat(2)) * (world_poses[aruco_id][1] - x_hat(1)) - 0.1,
                   world_poses[aruco_id][2] - x_hat(2);
+        
+        if (z_hat(2) < -M_PI) {
+          z_hat(2) += 2 * M_PI;
+        } else if (z_hat(2) > M_PI) {
+          z_hat(2) -= 2 * M_PI;
+        }
         
         geometry_msgs::msg::PoseStamped rviz_pose;
         rviz_pose.header.stamp = this->now();
