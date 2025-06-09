@@ -17,6 +17,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "aruco_interfaces/msg/aruco_markers.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -80,6 +81,7 @@ class PuzzlebotOdom : public rclcpp::Node{
         //wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wL", 10, std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
+        estimated_pose_subscriber    = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/initialpose", 10, std::bind(&PuzzlebotOdom::estimated_pose_callback, this, std::placeholders::_1));
         aruco_subscriber             = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>("/puzzlebot_" + std::to_string(puzzlebot_id) + "/aruco_markers", 10, std::bind(&PuzzlebotOdom::vision_callback, this, std::placeholders::_1));
       } else {
         estimator_pose_publisher     = this->create_publisher<geometry_msgs::msg::PoseStamped>("/estimator/pose", 10);
@@ -87,6 +89,7 @@ class PuzzlebotOdom : public rclcpp::Node{
 	odometry_publisher           = this->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
         //wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wL", 10, std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         //wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
+        estimated_pose_subscriber    = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10, std::bind(&PuzzlebotOdom::estimated_pose_callback, this, std::placeholders::_1));
         aruco_subscriber             = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>("/aruco_markers", 10, std::bind(&PuzzlebotOdom::vision_callback, this, std::placeholders::_1));
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncL", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncR", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
@@ -389,6 +392,27 @@ class PuzzlebotOdom : public rclcpp::Node{
       }
     }
 
+    void estimated_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped msg){
+      tf2::Quaternion qp(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
+      tf2::Matrix3x3 m(qp);
+      double roll, pitch, yaw;
+      m.getRPY(roll, pitch, yaw);
+
+      x_hat(0) = msg.pose.pose.position.x;
+      x_hat(1) = msg.pose.pose.position.y;
+      x_hat(2) = yaw;
+
+      if (x_hat(2) < -M_PI) {
+        x_hat(2) += 2 * M_PI;
+      } else if (x_hat(2) > M_PI) {
+        x_hat(2) -= 2 * M_PI;
+      }
+
+      P << 0, 0, 0,
+           0, 0, 0,
+           0, 0, 0;
+    }
+
     void time_callback(const std_msgs::msg::UInt32 &msg) {
       time = msg.data;
       if(time / 100000000 != prev_time / 100000000){
@@ -432,6 +456,7 @@ class PuzzlebotOdom : public rclcpp::Node{
     rclcpp::Subscription<std_msgs::msg::UInt32>::SharedPtr        sim_time_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_l_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_r_subscriber;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr        estimated_pose_subscriber;
     rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr        aruco_subscriber;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr  estimator_pose_publisher;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr estimator_velocity_publisher;
