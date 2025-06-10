@@ -187,10 +187,10 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       
       //uaux(0) = kp * efeo;
       if( efeo > 0.025 ){ 
-	RCLCPP_INFO(this->get_logger(), "Linear control cause efeo is big");
+	//RCLCPP_INFO(this->get_logger(), "Linear control cause efeo is big");
 	uaux(0) = kp * fsign(efeo);
       }else{
-	RCLCPP_INFO(this->get_logger(), "No linear control cause efeo is smol");
+	//RCLCPP_INFO(this->get_logger(), "No linear control cause efeo is smol");
 	uaux(0) = 0;
       }
 
@@ -203,11 +203,11 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       float angle_controlling;
       
       if ( do_angular_control && ( efeo < 0.025 )){
-	RCLCPP_INFO(this->get_logger(), "Controlling ref angle");
+	//RCLCPP_INFO(this->get_logger(), "Controlling ref angle");
 	angle_controlling = angular_error;
       } else {
 	angle_controlling = angular_error2;
-	RCLCPP_INFO(this->get_logger(), "Controlling line angle");
+	//RCLCPP_INFO(this->get_logger(), "Controlling line angle");
       }
      
       //cmd_vel.linear.x  = uaux(0);
@@ -215,13 +215,13 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
       //cmd_vel.angular.z = kp_a * fsign(angular_error2);
   
       if ( abs(angle_controlling) < 0.05 ){
-	RCLCPP_INFO(this->get_logger(), "Linear control, since reached ang");
+	//RCLCPP_INFO(this->get_logger(), "Linear control, since reached ang");
 	cmd_vel.linear.x  = uaux(0);
       	cmd_vel.angular.z = 0; 
       } else{
 	cmd_vel.linear.x  = 0; 
       	cmd_vel.angular.z = kp_a * fsign(angle_controlling);
-	RCLCPP_INFO(this->get_logger(), "No linear control, since havent reached ang");
+	//RCLCPP_INFO(this->get_logger(), "No linear control, since havent reached ang");
       }
 
       

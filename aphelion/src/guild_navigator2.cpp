@@ -18,6 +18,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
@@ -63,6 +64,8 @@ class GuildNavigator : public rclcpp::Node{
 
       //target_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/desired_pose", 10);
       target_publisher = this->create_publisher<aphelion_msgs::msg::PoseCommand>("/desired_pose", 10);
+
+      integration_pub = this->create_publisher<std_msgs::msg::String>("/integration", 10);
       
       std::cout << "Init A* node" << std::flush;
       
@@ -153,6 +156,11 @@ class GuildNavigator : public rclcpp::Node{
       current_target.do_realign = true;
       current_target.target_pose.pose.orientation = current_goal.pose.orientation;
       target_publisher->publish(current_target);
+
+      //Notify master we came
+      std_msgs::msg::String notify_msg;
+      notify_msg.data = "ASTAR";
+      integration_pub->publish(notify_msg);
 
       waypoint_timer->cancel();
       current_waypoint = 0;
@@ -389,6 +397,7 @@ class GuildNavigator : public rclcpp::Node{
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_subscriber;
     //rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_publisher;
     rclcpp::Publisher<aphelion_msgs::msg::PoseCommand>::SharedPtr target_publisher;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr integration_pub;
 
     rclcpp::TimerBase::SharedPtr waypoint_timer;
 };

@@ -53,12 +53,23 @@ def generate_launch_description():
                               transition_id=1,  # Configure transition
                               )) 
 
-    ros_gz_bridge_node = Node(package='ros_gz_bridge',
-                              executable='parameter_bridge',
-                              name='ros_gz_bridge',
+    align_node = LifecycleNode( 
+                              package='aphelion',
+                              executable='pallet_alignment_node',
+                              name='pallet_align_node',
                               output='screen',
-                              parameters=[{"config_file": os.path.join(get_package_share_directory('aphelion'), 'config', 'sim_bridge.yaml')}],
+                              namespace='',
                              )
+
+    align_node_configure = EmitEvent(event=ChangeState( 
+                              lifecycle_node_matcher=launch.events.matches_action(align_node),
+                              transition_id=1,  # Configure transition
+                              )) 
+
+    asmc_node_configure = EmitEvent(event=ChangeState( 
+                              lifecycle_node_matcher=launch.events.matches_action(asmc_node),
+                              transition_id=1,  # Configure transition
+                              )) 
 
     rviz_node = Node(package='rviz2',
                               executable='rviz2',
@@ -66,11 +77,10 @@ def generate_launch_description():
                               output='screen',
                              )
     
-    static_transform_node = Node(package='tf2_ros',
-                              executable='static_transform_publisher',
-                              name='map_to_odom',
+    guild_navigator_node = Node(package='aphelion',
+                              executable='guild_navigator_node',
+                              name='guild_navigator_node',
                               output='screen',
-                              arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
                              )
 
     image_node = Node(
@@ -111,7 +121,7 @@ def generate_launch_description():
     #l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
     # l_d = LaunchDescription([robot_state_pub_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
     # l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
-    l_d = LaunchDescription([marker_publisher_node, robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, markers_node_configure])
+    l_d = LaunchDescription([marker_publisher_node, robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, markers_node_configure, align_node, align_node_configure, guild_navigator_node])
 
     #l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node])
 

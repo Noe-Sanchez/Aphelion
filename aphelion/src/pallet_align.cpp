@@ -14,6 +14,7 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include <eigen3/Eigen/QR>
 
@@ -52,6 +53,8 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
       desired_pose_publisher         = this->create_publisher<aphelion_msgs::msg::PoseCommand>("/desired_pose", 10);
       marker_visualization_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/marker_visualization", 10);
       marker_visualization_publisher2 = this->create_publisher<geometry_msgs::msg::PoseStamped>("/marker_visualization2", 10);
+
+      integration_publisher = this->create_publisher<std_msgs::msg::String>("/integration",10);
       
 
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
@@ -140,7 +143,7 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
       Eigen::Quaterniond target_vector2 = target_vector;
       //target_vector2.x() += 0.1;
       //target_vector2.y() -= 0.03;
-      target_vector2.x() -= 0.225;
+      target_vector2.x() -= 0.35;
       target_vector2.y() -= 0.0775;
       target_vector.x()  += 0.025;
       target_vector.y()  -= 0.0775;
@@ -262,6 +265,13 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
 	if ( distance < 0.0275 ){
 	  // Were done, deactivate the node
 	  RCLCPP_INFO(this->get_logger(), "Pallet Pick Complete");
+
+	  std_msgs::msg::String end_msg;
+	  end_msg.data = "PALIGN";
+          integration_publisher->publish(end_msg);
+	  
+	  first_alignment = true;
+
 	  this->trigger_transition(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE);
 	  return;
 	}
@@ -292,6 +302,7 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr marker_visualization_publisher;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr marker_visualization_publisher2;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr integration_publisher;
 
 };
 

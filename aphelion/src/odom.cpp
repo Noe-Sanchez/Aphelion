@@ -88,7 +88,9 @@ class PuzzlebotOdom : public rclcpp::Node{
 	odometry_publisher           = this->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
         //wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wL", 10, std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         //wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/wR", 10, std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
-        aruco_subscriber             = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>("/aruco_markers", 10, std::bind(&PuzzlebotOdom::vision_callback, this, std::placeholders::_1));
+	//FUNADO GAETA
+        //aruco_subscriber             = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>("/aruco_markers", 10, std::bind(&PuzzlebotOdom::vision_callback, this, std::placeholders::_1));
+        aruco_subscriber             = this->create_subscription<aruco_interfaces::msg::ArucoMarkers>("/pijapija", 10, std::bind(&PuzzlebotOdom::vision_callback, this, std::placeholders::_1));
         wheel_l_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncL", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_l_callback, this, std::placeholders::_1));
         wheel_r_subscriber           = this->create_subscription<std_msgs::msg::Float32>("/VelocityEncR", rclcpp::SensorDataQoS(rclcpp::KeepLast(10)), std::bind(&PuzzlebotOdom::wheel_r_callback, this, std::placeholders::_1));
       }
@@ -199,7 +201,7 @@ class PuzzlebotOdom : public rclcpp::Node{
         estimator_pose_msg.pose.position.y = x_hat(1);
 
 
-	      std::cout << "x_hat normal: " << x_hat.transpose() << std::endl;
+	//std::cout << "x_hat normal: " << x_hat.transpose() << std::endl;
         Eigen::Quaterniond q(Eigen::AngleAxisd(x_hat(2), Eigen::Vector3d::UnitZ()));
         estimator_pose_msg.pose.orientation.x = q.x();
         estimator_pose_msg.pose.orientation.y = q.y();
@@ -247,7 +249,7 @@ class PuzzlebotOdom : public rclcpp::Node{
     }
 
     void vision_callback(const aruco_interfaces::msg::ArucoMarkers &markers) {
-      RCLCPP_INFO(get_logger(), "Running callback");
+      //RCLCPP_INFO(get_logger(), "Running callback");
       size_t i, index;
       int aruco_id = 999;
       geometry_msgs::msg::Pose aruco_pose;
@@ -323,7 +325,7 @@ class PuzzlebotOdom : public rclcpp::Node{
           x_hat(2) -= 2 * M_PI;
         }
 
-        std::cout << "x_hat vision: " << x_hat.transpose() << std::endl;
+        //std::cout << "x_hat vision: " << x_hat.transpose() << std::endl;
         P = (Eigen::Matrix3d::Identity(3, 3) - K * H) * P;
         estimator_pose_msg.pose.position.x = x_hat(0);
         estimator_pose_msg.pose.position.y = x_hat(1);
