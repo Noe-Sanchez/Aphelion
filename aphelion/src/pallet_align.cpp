@@ -138,7 +138,9 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
       //target_vector2.x() += 0.1;
       //target_vector2.y() -= 0.03;
       target_vector2.x() -= 0.125;
-      target_vector2.y() -= 0.0775;
+      target_vector2.y() -= 0.0575;
+      target_vector.x()  += 0.025;
+      target_vector.y()  -= 0.0575;
       Eigen::Quaterniond q_desired = q_robot * q_marker;
       //target_vector = q_robot.inverse() * target_vector * q_robot;
       target_vector = q_robot * target_vector * q_robot.inverse();
@@ -225,8 +227,35 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
       marker_visualization_publisher->publish(marker_visualization);
       marker_visualization_publisher2->publish(marker_visualization2);
 
-      desired_pose_publisher->publish(desired_pose);
+      // Check euclidean distance to the desired pose
+      //double distance = sqrt(pow(marker_visualization.pose.position.x - current_odometry.pose.pose.position.x, 2) + 
+      //	       	       pow(marker_visualization.pose.position.y - current_odometry.pose.pose.position.y, 2));
+      double distance = sqrt(pow(desired_pose.target_pose.pose.position.x - current_odometry.pose.pose.position.x, 2) + 
+			     pow(desired_pose.target_pose.pose.position.y - current_odometry.pose.pose.position.y, 2));
 
+      if ( first_alignment ){
+	if ( distance > 0.0275 ){
+	  desired_pose.target_pose = marker_visualization2;
+	  desired_pose.target_pose.header.stamp = this->now();
+	}else{
+	  // Sleep node for 2 seconds
+	  RCLCPP_INFO(this->get_logger(), "Pallet Alignment Complete");
+	  rclcpp::sleep_for(std::chrono::seconds(5));
+
+	  desired_pose.target_pose = marker_visualization;
+	  desired_pose.target_pose.header.stamp = this->now();
+	  first_alignment = false;
+	}
+      }else{
+	if ( distance < 0.0275 ){
+	  // Were done, deactivate the node
+	  RCLCPP_INFO(this->get_logger(), "Pallet Pick Complete");
+	  this->trigger_transition(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE);
+	  return;
+	}
+      }
+
+      desired_pose_publisher->publish(desired_pose);
 
     }
 
@@ -239,6 +268,7 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
     nav_msgs::msg::Odometry             current_odometry;
 
     Eigen::Vector3d x;
+
     bool first_alignment = true;
 
     rclcpp::TimerBase::SharedPtr control_timer; 
