@@ -131,21 +131,27 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
 
       // Apply odom quaternion to marker pose using Eigen
       //Eigen::Quaterniond target_vector( 0, target_marker.position.z, -target_marker.position.x, target_marker.position.y);
-      Eigen::Quaterniond target_vector( 0, target_marker.position.z, -target_marker.position.x, target_marker.position.y);
-      target_vector.x() = target_vector.x();
-      target_vector.y() = target_vector.y();
+      //Eigen::Quaterniond target_vector( 0, target_marker.position.z, -target_marker.position.x, target_marker.position.y);
+      Eigen::Quaterniond target_vector;
+      target_vector.x() =  target_marker.position.z;
+      target_vector.y() = -target_marker.position.x;
+      target_vector.z() =  target_marker.position.y;
+      target_vector.w() =  0;
       Eigen::Quaterniond target_vector2 = target_vector;
       //target_vector2.x() += 0.1;
       //target_vector2.y() -= 0.03;
-      target_vector2.x() -= 0.125;
-      target_vector2.y() -= 0.0575;
+      target_vector2.x() -= 0.225;
+      target_vector2.y() -= 0.0775;
       target_vector.x()  += 0.025;
-      target_vector.y()  -= 0.0575;
+      target_vector.y()  -= 0.0775;
+
       Eigen::Quaterniond q_desired = q_robot * q_marker;
+      //Eigen::Quaterniond q_pucha (0, 0, 0.71, 0.71);
+      //q_desired = (q_pucha.inverse()) * q_desired;
       //target_vector = q_robot.inverse() * target_vector * q_robot;
       target_vector = q_robot * target_vector * q_robot.inverse();
       target_vector2 = q_robot * target_vector2 * q_robot.inverse();
-      q_desired = q_desired.inverse();
+      //q_desired = q_desired.inverse();
       //target_vector = q_desired * target_vector * q_desired.inverse();
 
       marker_visualization.header.stamp = this->now();
@@ -153,10 +159,16 @@ class PalletAlign : public rclcpp_lifecycle::LifecycleNode{
       marker_visualization.pose.position.x = current_odometry.pose.pose.position.x + target_vector.x();
       marker_visualization.pose.position.y = current_odometry.pose.pose.position.y + target_vector.y();
 
-      marker_visualization.pose.orientation.x = q_desired.x();
-      marker_visualization.pose.orientation.y = q_desired.y();
-      marker_visualization.pose.orientation.z = q_desired.z();
-      marker_visualization.pose.orientation.w = q_desired.w();
+      
+      //Eigen::Quaterniond q_k  = q_desired.conjugate();
+      marker_visualization.pose.orientation.x = q_robot.x();
+      marker_visualization.pose.orientation.y = q_robot.y();
+      marker_visualization.pose.orientation.z = q_robot.z();
+      marker_visualization.pose.orientation.w = q_robot.w();
+      //imarker_visualization.pose.orientation.x = q_k.x();
+      //marker_visualization.pose.orientation.y = q_k.y();
+      //marker_visualization.pose.orientation.z = q_k.z();
+      //marker_visualization.pose.orientation.w = q_k.w();
 
       marker_visualization2 = marker_visualization;
       marker_visualization2.pose.position.x = current_odometry.pose.pose.position.x + target_vector2.x(); 

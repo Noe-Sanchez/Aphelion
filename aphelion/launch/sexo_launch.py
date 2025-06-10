@@ -99,13 +99,20 @@ def generate_launch_description():
                               executable='markers_publisher_node',
                               name='markers_publisher_node',
                               output='screen',
-                              parameters=[{"use_prefix": False, "show_window": False, "markerLength": 0.11}],
+                              parameters=[{"use_prefix": False, "show_window": False, "map_marker_length": 0.11, "pallet_marker_length": 0.02}],
                              )
+                        
+    markers_node_configure = EmitEvent(event=ChangeState( 
+                              lifecycle_node_matcher=launch.events.matches_action(marker_publisher_node),
+                              transition_id=1,  # Configure transition
+                              )) 
 
     #l_d = LaunchDescription([robot_state_pub_node, asmc_node, ros_gz_bridge_node])
     #l_d = LaunchDescription([robot_state_pub_node, ros_gz_bridge_node, rviz_node, restamper_node, static_transform_node, odom_node, marker_publisher_node])
     # l_d = LaunchDescription([robot_state_pub_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
-    l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
+    # l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, marker_publisher_node])
+    l_d = LaunchDescription([marker_publisher_node, robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node, markers_node_configure])
+
     #l_d = LaunchDescription([robot_state_pub_node, image_node, asmc_node, asmc_node_configure, odom_node])
 
     return l_d

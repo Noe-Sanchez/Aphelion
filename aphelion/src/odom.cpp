@@ -16,6 +16,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "aruco_interfaces/msg/aruco_markers.hpp"
@@ -103,6 +104,7 @@ class PuzzlebotOdom : public rclcpp::Node{
       prev_time = 0;
 
       pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/aruco_poses_rviz", 10);
+      estimated_pose_subscriber = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10, std::bind(&PuzzlebotOdom::estimated_pose_callback, this, std::placeholders::_1));
 
       control_timer                  = this->create_wall_timer(10ms, std::bind(&PuzzlebotOdom::control_callback, this));
       tf_broadcaster                 = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -398,6 +400,25 @@ class PuzzlebotOdom : public rclcpp::Node{
       prev_time = time;
     }
 
+    void estimated_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &msg) {
+      tf2::Quaternion qp(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
+      tf2::Matrix3x3 m(qp);
+      double roll, pitch, yaw;
+      m.getRPY(roll, pitch, yaw);
+      if (yaw < -M_PI) {
+        yaw += 2 * M_PI;
+      } else if (yaw > M_PI) {
+        yaw -= 2 * M_PI;
+      }
+      x_hat(0) = msg.pose.pose.position.x;
+      x_hat(1) = msg.pose.pose.position.y;
+      x_hat(2) = yaw;
+
+      P << 0, 0, 0,
+           0, 0, 0,
+           0, 0, 0;
+    }
+
   private:
     geometry_msgs::msg::TwistStamped     estimator_velocity_msg;
     geometry_msgs::msg::PoseStamped      estimator_pose_msg;
@@ -432,6 +453,7 @@ class PuzzlebotOdom : public rclcpp::Node{
     rclcpp::Subscription<std_msgs::msg::UInt32>::SharedPtr        sim_time_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_l_subscriber;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr        wheel_r_subscriber;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr  estimated_pose_subscriber;
     rclcpp::Subscription<aruco_interfaces::msg::ArucoMarkers>::SharedPtr        aruco_subscriber;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr  estimator_pose_publisher;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr estimator_velocity_publisher;
