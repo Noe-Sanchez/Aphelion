@@ -58,7 +58,10 @@ add_executable(guild_navigator_node src/guild_navigator2.cpp)
 ament_target_dependencies(guild_navigator_node rclcpp std_msgs geometry_msgs nav_msgs visualization_msgs aphelion_msgs)
 
 add_executable(master_control_node src/master_control.cpp)
-ament_target_dependencies(master_control_node rclcpp std_msgs lifecycle_msgs sensor_msgs aphelion_msgs)
+ament_target_dependencies(master_control_node rclcpp std_msgs lifecycle_msgs sensor_msgs aphelion_msgs nav_msgs)
+
+add_executable(pallet_alignment_node src/pallet_align.cpp)
+ament_target_dependencies(pallet_alignment_node rclcpp std_msgs lifecycle_msgs aphelion_msgs nav_msgs geometry_msgs rclcpp_lifecycle aruco_interfaces)
 
 #ament_python_install_package(${PROJECT_NAME})
 
@@ -76,6 +79,7 @@ install(TARGETS
   restamper_node
   guild_navigator_node
   master_control_node
+  pallet_alignment_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

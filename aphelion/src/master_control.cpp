@@ -17,17 +17,13 @@
 #include "lifecycle_msgs/msg/transition_event.hpp"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "std_msgs/msg/float32.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "aphelion_msgs/msg/pose_command.hpp"
+#include "aphelion_msgs/msg/nav_state.hpp"
 
 #include "rclcpp/qos.hpp"
 
 using namespace std::chrono_literals;
-
-enum navigationState{
-    STANDBY,
-    ASTAR,
-    BUG0,
-    STOP
-};
 
 template<typename FutureT, typename WaitTimeT>
 std::future_status
@@ -50,28 +46,29 @@ wait_for_result(
 class MasterControl : public rclcpp::Node{
   public:
     MasterControl(): Node("master_control") {
-      //this->declare_parameter("asmc_node_name", "puzzlebot_asmc_node");
       this->declare_parameter("asmc_node_name", "asmc_node");
-      this->get_parameter("asmc_node_name", asmc_node_name);
-      //this->declare_parameter("bug0_node_name", "bug0_node");
-      this->declare_parameter("bug0_node_name", "bug_algorithm");
-      this->get_parameter("bug0_node_name", bug0_node_name);
-      this->declare_parameter("astar_node_name", "guild_navigator_node");
-      this->get_parameter("astar_node_name", astar_node_name);
-      //curr_state = STANDBY;      
-      curr_state = ASTAR; // Start with A* algorithm active
-
-      //lidar_sub = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan2",  10, std::bind(&MasterControl::lidar_callback, this, std::placeholders::_1));
-      min_dist_sub = this->create_subscription<std_msgs::msg::Float32>("/min_distance", 10, std::bind(&MasterControl::min_dist_callback, this, std::placeholders::_1));
+      this->get_parameter(    "asmc_node_name",  asmc_node_name);
       
-      bug0_transitions_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>("/" + bug0_node_name + "/transition_event", 10, std::bind(&MasterControl::astar_trans_callback, this, std::placeholders::_1));
-      asmc_transitions_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>("/" + asmc_node_name + "/transition_event", 10, std::bind(&MasterControl::astar_trans_callback, this, std::placeholders::_1));
+      this->declare_parameter("astar_node_name", "guild_navigator_node");
+      this->get_parameter(    "astar_node_name",  astar_node_name);
+
+      navigation_state = aphelion_msgs::msg::NavState::STATE_STOP; // Start in stop state
+      transitioning = false; 
+      
+      asmc_transitions_sub  = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>("/" + asmc_node_name + "/transition_event", 10, std::bind(&MasterControl::astar_trans_callback, this, std::placeholders::_1));
       astar_transitions_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>("/" + astar_node_name + "/transition_event", 10, std::bind(&MasterControl::astar_trans_callback, this, std::placeholders::_1));
       
-      
-      bug0_change_state = this->create_client<lifecycle_msgs::srv::ChangeState>("/" + bug0_node_name + "/change_state");
-      asmc_change_state = this->create_client<lifecycle_msgs::srv::ChangeState>("/" + asmc_node_name + "/change_state");
+      asmc_change_state  = this->create_client<lifecycle_msgs::srv::ChangeState>("/" + asmc_node_name + "/change_state");
       astar_change_state = this->create_client<lifecycle_msgs::srv::ChangeState>("/" + astar_node_name + "/change_state");
+
+      state_override_sub = this->create_subscription<aphelion_msgs::msg::NavState>("/master/state_override", 10, std::bind(&MasterControl::state_override_callback, this, std::placeholders::_1));
+
+      // Pubs and subs for orchestra
+      desired_pose_pub = this->create_publisher<aphelion_msgs::msg::PoseCommand>("/desired_pose", 10);
+      odometry_sub     = this->create_subscription<nav_msgs::msg::Odometry>("/odometry", 10, std::bind(&MasterControl::odometry_callback, this, std::placeholders::_1));
+
+      state_machine_timer = this->create_wall_timer(100ms, std::bind(&MasterControl::state_machine_callback, this));
+      
     }
 
     bool change_state(std::uint8_t transition, rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client, std::chrono::seconds time_out = 3s) {
@@ -87,72 +84,17 @@ class MasterControl : public rclcpp::Node{
       }
 
       // We send the request with the transition we want to invoke.
-      auto future_result = client->async_send_request(request).future.share();
+      RCLCPP_INFO(get_logger(), "Requesting state change");
 
-      // Let's wait until we have the answer from the node.
-      // If the request times out, we return an unknown state.
-      auto future_status = wait_for_result(future_result, time_out);
-
-      if (future_status != std::future_status::ready) {
-        RCLCPP_ERROR(
-          get_logger(), "Server time out while getting current state for node");
-        return false;
+      // Just send request, dont wait for response
+      auto future = client->async_send_request(request);
+      // Wait for the result with a timeout
+      auto status = wait_for_result(future, 100ms);
+      if (status != std::future_status::ready) {
+	RCLCPP_INFO(get_logger(), "Service call timed out after %ld seconds", time_out.count());
       }
 
-      // We have an answer, let's print our success.
-      if (future_result.get()->success) {
-        RCLCPP_INFO(
-          get_logger(), "Transition %d successfully triggered.", static_cast<int>(transition));
-        return true;
-      } else {
-        RCLCPP_WARN(
-          get_logger(), "Failed to trigger transition %u", static_cast<unsigned int>(transition));
-        return false;
-      }
-    }
-
-    void min_dist_callback(const std_msgs::msg::Float32::SharedPtr msg){
-      RCLCPP_INFO(get_logger(), "Current min distance: %f", msg->data);
-      if (msg->data < 0.3){
-        if(curr_state ==  ASTAR){
-	  change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, bug0_change_state);
-          change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, astar_change_state);
-          curr_state = BUG0;
-	  RCLCPP_INFO(get_logger(), "BUG0 IS ACTIVATED");
-	  return;
-          }
-      }else{
-	if (curr_state == BUG0){
-	  change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, bug0_change_state);
-	  change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, astar_change_state);
-	  curr_state = ASTAR;
-	  RCLCPP_INFO(get_logger(), "ASTAR IS ACTIVATED");
-	}
-      }
-    }
-    
-   
-    /*
-    void lidar_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg){
-      for(double range: msg->ranges){
-        if(range < 0.5){
-          if(curr_state ==  ASTAR){
-            change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, bug0_change_state);
-            change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, astar_change_state);
-            curr_state = BUG0;
-            return;
-          }
-        }
-      }
-      if(curr_state == BUG0){
-        change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, bug0_change_state);
-        change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, astar_change_state);
-        curr_state = ASTAR;
-      }
-    }*/
-
-    void bug0_trans_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg){
-      
+      return true;
     }
 
     void asmc_trans_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg){
@@ -163,17 +105,105 @@ class MasterControl : public rclcpp::Node{
       
     }
 
+    void state_override_callback(const aphelion_msgs::msg::NavState::SharedPtr msg){
+      RCLCPP_INFO(get_logger(), "Received state override from (%d) to (%d)", navigation_state, msg->state);
+      navigation_state = msg->state; 
+      transitioning = true; 
+    } 
+
+    void odometry_callback(const nav_msgs::msg::Odometry::SharedPtr msg){
+      current_odometry = msg;
+    } 
+
+    void state_machine_callback(){
+      
+      // Switch states
+      switch ( navigation_state ) {
+	case aphelion_msgs::msg::NavState::STATE_STOP:{
+	  if ( transitioning ){
+	    while ( true ){
+	      // Ask for state transition
+	      bool req = change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, asmc_change_state); 
+	      if ( req ) {
+		RCLCPP_INFO(get_logger(), "Stopping...");
+		break; 
+	      } else {
+		RCLCPP_ERROR(get_logger(), "Failed to change state to ASTAR, retrying...");
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	      }
+	    }
+
+	    transitioning = false;
+	  }
+
+	  RCLCPP_INFO(get_logger(), "Stopped");
+	  break;
+        }
+	case aphelion_msgs::msg::NavState::STATE_ASTAR:{
+	  // Transition clause
+	  if ( transitioning ){
+	    while ( true ){
+	      // Ask for state transition
+	      bool req = change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, asmc_change_state); 
+	      if ( req ) {
+		RCLCPP_INFO(get_logger(), "Going ASTAR...");
+		break; 
+	      } else {
+		RCLCPP_ERROR(get_logger(), "Failed to change state to ASTAR, retrying...");
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	      }
+	    }
+
+	    transitioning = false;
+	  }
+
+	  RCLCPP_INFO(get_logger(), "Going to goal");
+	  
+	  break; 
+	}
+	default:{
+	  RCLCPP_ERROR(get_logger(), "State %d defaulted, is everything ok?", navigation_state);
+	  break;
+	}
+      }
+    }
+
   private:
-    std::string asmc_node_name, bug0_node_name, astar_node_name;
-    navigationState curr_state;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr min_dist_sub;
-    rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>::SharedPtr asmc_transitions_sub, bug0_transitions_sub, astar_transitions_sub;
-    rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr asmc_change_state, bug0_change_state, astar_change_state;
+    uint8_t     navigation_state; 
+    std::string asmc_node_name, astar_node_name;
+    bool        transitioning;
+    
+    nav_msgs::msg::Odometry::SharedPtr         current_odometry;
+    aphelion_msgs::msg::PoseCommand::SharedPtr desired_pose;
+
+    rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr           asmc_change_state,    astar_change_state;
+    
+    rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>::SharedPtr asmc_transitions_sub, astar_transitions_sub;
+    rclcpp::Subscription<aphelion_msgs::msg::NavState>::SharedPtr         state_override_sub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr              odometry_sub;
+    rclcpp::Publisher<aphelion_msgs::msg::PoseCommand>::SharedPtr         desired_pose_pub;
+
+    rclcpp::TimerBase::SharedPtr state_machine_timer;
 };
 
 int main(int argc, char * argv[]){
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<MasterControl>());
+  //rclcpp::spin(std::make_shared<MasterControl>());
+
+  // Create multithreaded executor
+  //rclcpp::executors::MultiThreadedExecutor executor;
+  //auto master_control_node = std::make_shared<MasterControl>();
+  //executor.add_node(master_control_node);
+  //executor.spin();
+  //
+
+  auto node = std::make_shared<MasterControl>();
+
+
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();  
+
   rclcpp::shutdown();
   return 0;
 }

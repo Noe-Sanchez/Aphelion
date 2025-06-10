@@ -101,6 +101,13 @@ class PuzzlebotAsmc : public rclcpp_lifecycle::LifecycleNode{
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) {
       RCLCPP_INFO(this->get_logger(), "Deactivating Puzzlebot ASMC Node");
       
+      // Additionally, reset puzzlebot cmd_vel
+      cmd_vel.linear.x  = 0;
+      cmd_vel.angular.z = 0;
+      
+      // Publish cmd_vel
+      wheel_vel_publisher->publish(cmd_vel);
+
       // Stop the timer
       // Deactivate publisher
       wheel_vel_publisher->on_deactivate();
